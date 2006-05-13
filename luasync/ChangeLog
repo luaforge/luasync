@@ -1,0 +1,16 @@
+2006-05-13 03:59  ezdy
+
+	* Makefile, buf.c, buf.h, event.c, ll.h, doc/buf.txt, doc/err.txt,
+	  doc/event.txt, doc/io.txt, doc/net.txt: added cvs id tags
+	  everywhere
+
+2006-05-13 03:36  ezdy
+
+	* buf.c, buf.h, event.c, Makefile, ll.h, doc/buf.txt, doc/err.txt,
+	  doc/event.txt, doc/io.txt, doc/net.txt: Initial cvs import
+
+2006-05-13 03:36  ezdy
+
+	* buf.c, buf.h, event.c, Makefile, ll.h, doc/buf.txt, doc/err.txt,
+	  doc/event.txt, doc/io.txt, doc/net.txt: Initial revision
+
