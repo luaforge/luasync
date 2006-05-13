@@ -1,4 +1,4 @@
-# $Id
+# $Id: Makefile,v 1.3 2006-05-13 02:07:05 ezdy Exp $
 # only for macosx now ;)
 
 CFLAGS=-I/usr/local/include -O2 -Winline -Wall
