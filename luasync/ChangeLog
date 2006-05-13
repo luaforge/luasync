@@ -1,3 +1,7 @@
+2006-05-13 04:07  ezdy
+
+	* Makefile: typo
+
 2006-05-13 03:59  ezdy
 
 	* Makefile, buf.c, buf.h, event.c, ll.h, doc/buf.txt, doc/err.txt,
