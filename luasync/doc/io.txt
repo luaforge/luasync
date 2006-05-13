@@ -1,0 +1,111 @@
+Disk I/O interface
+------------------
+io.open(fname, "rwcx")
+	open given fname, flags:
+		r - for reading
+		w - for writing
+		c - create
+		x - exclude (for create)
+
+io.stat(fname)
+	returns a pseudo-table with follwing keys:
+	dev, ino, mode, nlink, uid, gid, rdev, atime, mtime, ctime, size, blocks, blksize
+	the names are self-explanatory. consult man page for stat() for more.
+
+io.lstat(fname)
+	same as above, but dont dereference symlinks
+
+io.fstat(fd)
+	same as stat, but for opened fd
+
+io.read(fd, count[, offset])
+	returns a buffer with data read
+
+io.write(fd, buf[, offset])
+	returns a buffer with data written
+
+io.sendfile(from, to[, offset[, count]])
+	sendfile from fiel to socket 'to'.
+	offset is where to start and count is maximum
+	limit to be sent.
+
+io.seek(fd, [offset[, "bes"]])
+	seek in file at position
+		b - since beggining
+		e - since end
+		s - just seek
+io.close(fd)
+	close the file handle, freeing any resources associated with it.
+
+io.opendir(fname)
+	open the directory for reading
+
+io.readdir(dd[,pos])
+	read the directory. intended use:
+	do
+		dirent, pos = io.readdir(dd, pos);
+		if (not dirent) then
+			break
+		end
+	end
+
+io.telldir(dd)
+	give out current pos of readdir.
+
+io.closedir(dd)
+	close the directory
+
+io.dir([newdir])
+	tell us current directory, or change to new directory 'newdir'
+
+io.unlink(fname)
+	remove given file
+
+io.rmdir(fname)
+	remove given directory (must be empty)
+
+io.chmod(fname, mode)
+io.fchmod(fd, mode)
+	change permissions
+
+io.chown(fname, uid, gid)
+io.fchown(fd, uid, gid)
+io.lchown(fd, uid, gid)
+	change owner. either uid or gid can be left out
+
+Disk AIO interface
+------------------
+The following is provided to handle aio:
+aio.open, aio.stat, aio.lstat, aio.fstat, aio.read, aio.write,
+
+they return an event object (see event.txt) which will be returned
+whenever aio completes. returned values are as follows:
+
+ev, result, error = event.poll()
+
+the ev is completely different from socket events, so you must treat it so. final loop looks like:
+
+aioq[aio.open("blahblah")] = context
+
+...
+
+for ev, r, w in event.poll do
+	-- lookup the aio event table
+	local ctx = aioq[ev];
+	if (ctx) then
+		if (not w) then
+			process_aio(ctx, r);
+		end
+		aioq[ev] = nil
+	else
+
+		if (r) then
+			process_read(ev);
+		end
+
+		if (w) then
+			process_write(ev);
+		end
+	end
+end
+

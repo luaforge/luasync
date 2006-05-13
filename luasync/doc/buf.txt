@@ -1,0 +1,106 @@
+----------------
+Buffer interface
+----------------
+A.K.A "There's no object refcounting in Lua? It's been done before."
+
+Firstly, few notes.
+
+Every argument where buffer is expected can be any lua_tostring-able value,
+including numbers, strings etc, everything lua_tostring-able (ie has a __tostring).
+Before that, buf library tries to lookup __tobuf metamethod and expects buffer
+structure returned. If everything of the above has failed, we raise an error.
+
+Buffers are userdata, thus they're REFERENCEd when assigning them to variables.
+That means
+a = b
+a and b refer to the very same buffer. some operations over buffer modify the original
+buffer argument (cut, insert, append, prepend) and return number of bytes
+actually operated upon, or nil if the operation failed (invalid index ..)
+
+Other functions like (new, sub, dup, concat) return NEW buffer and the arguments remain
+untouched. Why do you ask? Because creating unique copy only for these functions actually make
+sense. It also forces the programmer to work with as less of copies of buffers as possible.
+Note that all buffer operations are zero-copy (refcounted), but even buffer head
+describing buffer itself (userdata) take some space and overhead to create/manage.
+
+* These functions CREATE and RETURN a NEW buffer:
+buf.new();
+	this will create new empty buffer
+
+buf.sub(buf, start, len);
+	returns given part of the buffer. original buffer unmodified,
+	unique copy is returned.
+
+buf.dup(buf)
+	create exact duplicate of given buffer, but living it's own life.
+	same as buf.sub(buf, 0, #buf);
+
+buf.concat(buf1,buf2,buf3,bufX...)
+	concenate several buffers into one. zero arguments return empty buffer.
+	this returns unique NEW buffer, leaving it's arguments untouched.
+	This functions is also the '..' metamethod thus equals to:
+	new = buf1 .. buf2 .. buf3 .. bufX
+
+* These functions MODIFY the buffer and return number of bytes modified
+  or nil in case of error:
+  
+buf.cut(buf, start, len)
+	cut off part of buffer the buffer starting at start of length len.
+
+buf.insert(buf, offset, what)
+	insert buffer 'what' at position offset of buffer 'buf'
+	
+
+buf.append(buf, buf1, buf2, bufX)
+	append buf1, buf2, .. bufX to the first buffer, that is:
+	buf.append(x, "b", "c", "d") x = "bcd".
+
+buf.prepend(buf, buf1, buf2, bufX...)
+	prepend buf1, buf2, .. bufX in front of the first buffer, that is:
+	buf.prepend(x, "b", "c", "d") x = "dcb", yah basically
+	reversed order.
+
+* Read-only operations:
+buf.find(haystack, needle)
+	find 'needle' in 'haystack' and return offset at which 'haystack' occurs.
+	do NOT use "if (not buf.find...)" because 0 is also valid offset, instead,
+	use if (buf.find(..) == nil)
+
+buf.cmp(buf1, buf2)
+	check if raw contents of the buffers are same.
+	returns boolean.
+
+	You should avoid the == operator which is quite special and returns
+	true bascially only for buffers which are clone's from dup()
+	which undergone the same order of operations (that is, only
+	buffer's internal representation is compared, not the actual
+	data):
+
+	example:
+	b1 = new("blabla")
+	b2 = b1:dup()
+	b1:cut(1,1)
+	b2:cut(1,1)
+	if (b1 == b2) => true
+
+	b1 = new("blabla")
+	b2 = b1:dup()
+	b1:cut(1,1)
+	b1:insert(1,"l")
+	if (b1 == b2) => false
+	b1:cmp(b2) => true
+
+	To understand exactly how it works, look up the source code.
+	Otherwise parental supervision is requiered before using ==.
+
+* Use of the following two is discouraged. They're slow and generally does not exactly
+  fall into what were buffers designed for. If you want string operations, convert
+  buffers to strings using tostring().
+
+buf.peek(buf, pos)
+	Return a byte of buffer at given pos.
+
+buf.poke(buf, pos, val)
+	Set a byte at pos to value 'val'. val can be either number
+	or a one-byte string.
+

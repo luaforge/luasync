@@ -1,0 +1,49 @@
+Net interface
+-------------
+string = net.errno()
+	return errno-like string ("EINVAL", "EINTR", "EAGAIN" etc) of last error.
+string = net.errstr([errno])
+	return human-readable string of the above.
+
+s = net.tcp([bindaddr,port])
+	create a tcp socket
+
+s = net.udp([bindaddr,port])
+	create an udp socket
+
+failed = net.bind(s, bindaddr, port)
+	bind socket to addr/port. returns false if failed
+
+failed = net.listen(s[,backlog])
+	start listening to a socket. returns false if failed
+
+val = net.opt(s, "reuseaddr|keepalive|linger|sndbuf|rcvbuf|sndlowat|rcvlowat|sndtimeo|rcvtimeo"[, value])
+	set or get socket option. if no value specified the option's value is just returned
+
+host, port = net.peername(s[,newhost,newport])
+	get remote peer's name.
+	for udp sockets you can also set fixed remote peer (udp "connect()") by providing two arguments
+	host/port.
+
+s = net.accept(s)
+	accept incoming connection
+
+s = net.connect(s,host,port)
+	connect to remote host port. for tcp it starts the connection, for udp
+	it just sets fixed remote peer name (equal to net.peername)
+
+count = net.recv(s, buf, count)
+	try to receive count bytes from buf. returns number of bytes received,
+	or nil on error.
+count, host, port = net.recvfrom(buf, s, count)
+	same as recv, but for unconnected udp sockets.
+
+count = net.send(s, buf)
+	try to send as many bytes of the buffer buf as possible. returns number of bytes sent,
+	or nil on error.
+
+count = net.sendto(s, buf, host, port)
+	same as above, but again for connectionless udp sockets.
+
+	net.close(s)
+	close the socket. 
