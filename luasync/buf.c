@@ -1,5 +1,6 @@
 /*
- * buf.c - buffer VM implementation.
+ * $Id: buf.c,v 1.2 2006-05-13 01:59:11 ezdy Exp $
+ * buffer VM implementation.
  * provides primitives for operating large blobs of data,
  * appending, prepending, inserting, cutting etc.
  *

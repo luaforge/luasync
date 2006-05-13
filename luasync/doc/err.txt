@@ -1,3 +1,4 @@
+$Id: err.txt,v 1.2 2006-05-13 01:59:11 ezdy Exp $
 Error reporting
 ---------------
 err.no = return current error value

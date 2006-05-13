@@ -1,3 +1,10 @@
+/*
+ * $Id: event.c,v 1.2 2006-05-13 01:59:11 ezdy Exp $
+ *
+ * libevent bindings. we're not using callbacks, though it would be cool,
+ * because lua->c->lua would stand in the way of coroutines.
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 

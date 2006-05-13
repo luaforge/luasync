@@ -1,3 +1,4 @@
+$Id: io.txt,v 1.2 2006-05-13 01:59:11 ezdy Exp $
 Disk I/O interface
 ------------------
 io.open(fname, "rwcx")

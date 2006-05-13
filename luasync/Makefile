@@ -1,3 +1,6 @@
+# $Id
+# only for macosx now ;)
+
 CFLAGS=-I/usr/local/include -O2 -Winline -Wall
 
 LDFLAGS=-bundle -undefined dynamic_lookup

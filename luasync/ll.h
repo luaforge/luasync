@@ -1,3 +1,9 @@
+/*
+ * $Id: ll.h,v 1.2 2006-05-13 01:59:11 ezdy Exp $
+ * linked lists. i know there are plenty of better implementations, but
+ * i'm quite accustomed to these.
+ */
+
 #ifndef __LL_H
 #define __LL_H
 #define LL_INIT(x) \
