@@ -1,7 +1,7 @@
-$Id: err.txt,v 1.2 2006-05-13 01:59:11 ezdy Exp $
+$Id: err.txt,v 1.3 2006-05-14 01:43:14 ezdy Exp $
 Error reporting
 ---------------
-err.no = return current error value
+err.no = return current error value, nil on no error
 err.str = return current error's string value ("Invalid argument" and alike)
 err.clear() = clear current error
 
