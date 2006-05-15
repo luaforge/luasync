@@ -1,5 +1,5 @@
 /*
- * $Id: buf.h,v 1.2 2006-05-13 01:59:11 ezdy Exp $
+ * $Id: buf.h,v 1.3 2006-05-15 07:36:51 ezdy Exp $
  * buf.h - buffer VM implementation.
  * provides primitives for operating large blobs of data,
  * appending, prepending, inserting, cutting etc.
@@ -33,7 +33,6 @@
 #define BUFHANDLE "buf*"
 #define	BUF_PREALLOC	512
 
-
 /*************************************************************************
  * structs 
  *************************************************************************/
@@ -65,6 +64,8 @@ struct	luabuf {
  * externs 
  *************************************************************************/
 extern	int	rused, vused;
+extern	int buf_init(lua_State *L);
+
 #define BUF_HARD	1	/* raise error if not buf type, otherwise NULL */
 #define	BUF_CONV	2	/* try convert from other types */
 
@@ -153,6 +154,42 @@ static	inline	struct bufchain *bufc_copy(struct bufchain *ob, int pos, int len)
 /*************************************************************************
  * bufchains operations
  *************************************************************************/
+static inline struct bufchain *buf_grab(struct luabuf *in, int len, int force)
+{
+	struct	bufchain *bc;
+
+	if (force || (!in->len))
+		goto noavail;
+	assert(!ll_empty(&in->chain));
+	bc = ll_get(in->chain.prev, struct bufchain, list);
+	if (!bc->raw->free)
+		goto noavail;
+
+	return bc;
+noavail:
+	bc = malloc(sizeof(*bc));
+	bc->len = bc->start = 0;
+	bc->raw = bufr_new(len);
+	bc->raw->len = 0;
+	bc->raw->free = len;
+	ll_add(&in->chain, &bc->list);
+	return bc;
+}
+
+static	inline	void buf_commit(struct luabuf *in, int len)
+{
+	struct	bufchain *bc;
+	bc = ll_get(in->chain.prev, struct bufchain, list);
+	assert(len <= bc->raw->free);
+	bc->len += len;
+	bc->raw->len += len;
+	bc->raw->free -= len;
+	if (!bc->len) {
+		ll_del(&bc->list);
+		free(bc);
+	}
+}
+
 /* try fit some bytes to the free space at the tail of the chain.
    returns the number of bytes fitted */
 static inline int	buf_tryfitbytes(struct luabuf *in, char *bytes, int len)
@@ -171,6 +208,7 @@ static inline int	buf_tryfitbytes(struct luabuf *in, char *bytes, int len)
 		assert(bc->start + bc->len < (bc->raw->len + bc->raw->free));
 		memcpy(bc->raw->data + bc->raw->len, bytes, len);
 		bc->raw->len += len;
+		in->len += len;
 		bc->raw->free -= len;
 		return len;
 	}

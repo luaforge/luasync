@@ -1,6 +1,7 @@
 #ifndef __ERR_H
 #define __ERR_H
 
+
 struct	err_name {
 	char	*name;
 	int	val;
@@ -100,6 +101,8 @@ struct	err_name err_names[] = {
 	 { "ECANCELED",       ECANCELED },
 	 { NULL,              0 }
 };
-
+#else
+extern int err_no;
+extern int err_init(lua_State *L);
 #endif
 #endif

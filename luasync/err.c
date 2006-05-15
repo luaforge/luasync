@@ -61,7 +61,7 @@ luaL_Reg err_meth[] = {
 	{ NULL, NULL }
 };
 
-LUALIB_API int luaopen_err(lua_State *L)
+int err_init(lua_State *L)
 {
 	int	i;
 	/* create error matrix */

@@ -1,16 +1,15 @@
-$Id: net.txt,v 1.2 2006-05-13 01:59:11 ezdy Exp $
+$Id: net.txt,v 1.3 2006-05-15 07:36:51 ezdy Exp $
 Net interface
 -------------
-string = net.errno()
-	return errno-like string ("EINVAL", "EINTR", "EAGAIN" etc) of last error.
-string = net.errstr([errno])
-	return human-readable string of the above.
 
 s = net.tcp([bindaddr,port])
 	create a tcp socket
 
 s = net.udp([bindaddr,port])
 	create an udp socket
+
+failed = net.nonblock(s, boolean)
+	true = nonblocking mode, false = blocking mode (default)
 
 failed = net.bind(s, bindaddr, port)
 	bind socket to addr/port. returns false if failed
@@ -26,7 +25,7 @@ host, port = net.peername(s[,newhost,newport])
 	for udp sockets you can also set fixed remote peer (udp "connect()") by providing two arguments
 	host/port.
 
-s = net.accept(s)
+s, host, port = net.accept(s)
 	accept incoming connection
 
 s = net.connect(s,host,port)
@@ -34,7 +33,7 @@ s = net.connect(s,host,port)
 	it just sets fixed remote peer name (equal to net.peername)
 
 count = net.recv(s, buf, count)
-	try to receive count bytes from buf. returns number of bytes received,
+	try to receive count bytes into buffer buf. returns number of bytes received,
 	or nil on error.
 count, host, port = net.recvfrom(buf, s, count)
 	same as recv, but for unconnected udp sockets.

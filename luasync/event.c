@@ -1,5 +1,5 @@
 /*
- * $Id: event.c,v 1.2 2006-05-13 01:59:11 ezdy Exp $
+ * $Id: event.c,v 1.3 2006-05-15 07:36:51 ezdy Exp $
  *
  * libevent bindings. we're not using callbacks, though it would be cool,
  * because lua->c->lua would stand in the way of coroutines.
@@ -31,15 +31,6 @@ llist	completed = LL_INIT(completed);
  * structs 
  *************************************************************************/
 /* this is the event as seen by lua */
-struct	luaevent {
-	llist	clist;
-	int	started:1;
-	int	completed:1;
-	int	timeout;
-	short	mask;
-	struct	event ev;
-};
-
 /*************************************************************************
  * utility
  *************************************************************************/
@@ -124,7 +115,7 @@ static	char *printmask(short mask)
  *************************************************************************/
 static	int	ev_add(lua_State *L)
 {
-	int	fd;
+	sockd	*fd;
 	int	oneshot = 0;
 	struct	luaevent *le;
 	char	*mask;
@@ -132,15 +123,16 @@ static	int	ev_add(lua_State *L)
 
 
 	/* get args */
-	fd = luaL_checkint(L, 1);
+	fd = luaL_checkudata(L, 1, SOCKHANDLE);
 	mask = (char *) luaL_optstring(L, 2, "rw");
 	timeout = luaL_optint(L, 3, default_timeout);
 	if (lua_isboolean(L, 4))
 		oneshot = lua_toboolean(L, 4);
 
 	le = lua_newuserdata(L, sizeof(*le));
+	ll_add(&fd->events, &le->fdevent);
 	le->mask = parsemask(oneshot?0:EV_PERSIST, mask);
-	event_set(&le->ev, fd, le->mask, event_cb, le);
+	event_set(&le->ev, fd->fd, le->mask, event_cb, le);
 	le->completed = le->started = 0;
 	le->timeout = timeout;
 
@@ -166,13 +158,12 @@ static	int	ev_add(lua_State *L)
 static	int	ev_fd(lua_State *L)
 {
 	struct	luaevent *le = getevent(L);
-	if (lua_isnumber(L, 2)) {
-		int fd = lua_tointeger(L, 2);
-		if (le->ev.ev_fd != fd) {
-			event_stop(le);
-			event_set(&le->ev, fd, le->mask, event_cb, le);
-			event_start(le);
-		}
+	if (!lua_isnil(L, 2)) {
+		sockd *fd = lua_checkudata(L, 2, SOCKHANDLE);
+		event_stop(le);
+		ll_add(&fd->events, &le->fdevent);
+		event_set(&le->ev, fd->fd, le->mask, event_cb, le);
+		event_start(le);
 	}
 	lua_pushnumber(L, le->ev.ev_fd);
 	return 1;
@@ -232,6 +223,10 @@ static	int	ev_oneshot(lua_State *L)
 static	int	ev_start(lua_State *L)
 {
 	struct	luaevent *le = getevent(L);
+
+	if (le->deleted)
+		luaL_argerror(L, 1, "cannot start deleted event (zombie)");
+
 	if (!le->started) {
 		le->started = 1;
 		event_start(le);
@@ -252,10 +247,18 @@ static	int	ev_stop(lua_State *L)
 static	int	ev_del(lua_State *L)
 {
 	struct	luaevent *le = getevent(L);
+
 	event_stop(le);
+	le->started = 0;
+	le->deleted = 1;
 	if (le->completed) {
 		ll_del(&le->clist);
 		le->completed = 0;
+	}
+	/* dissaassoc fd from this event */
+	if (!ll_empty(&le->fdevent)) {
+		ll_del(&le->fdevent);
+		LL_CLEAR(le->fdevent);
 	}
 	return 0;
 }
