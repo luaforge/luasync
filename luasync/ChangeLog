@@ -1,3 +1,15 @@
+2006-05-15 09:36  ezdy
+
+	* Makefile, buf.c, buf.h, err.c, err.h, event.c, luasync.c, net.c,
+	  net.h, doc/net.txt: added network i/o. buf_grab/buf_commit
+	  interface for i/os.  events undergoing complete rewrite, stuff is
+	  too stacked on libevent (one event goes technically through 3 or
+	  4 linked lists etc)
+
+2006-05-14 03:43  ezdy
+
+	* err.c, err.h, doc/err.txt: error handling
+
 2006-05-13 04:07  ezdy
 
 	* Makefile: typo
