@@ -1,3 +1,10 @@
+2006-05-20 02:11  ezdy
+
+	* Makefile, event.c, luasync.c, net.c, net.h, doc/event.txt,
+	  event/common.h, event/poll.h, event/select.h: events rewritten to
+	  use our own implementation. libevent proved to be too bloated :(
+	  TODO: kqueue, epoll, win32
+
 2006-05-15 09:36  ezdy
 
 	* Makefile, buf.c, buf.h, err.c, err.h, event.c, luasync.c, net.c,
