@@ -1,77 +1,34 @@
-$Id: event.txt,v 1.2 2006-05-13 01:59:11 ezdy Exp $
+$Id: event.txt,v 1.3 2006-05-20 00:11:01 ezdy Exp $
 ---------------
 Event interface
 ---------------
-event.add(fd, [mask[, timeout[, oneshot]]])
-	this will register new event into the event core.
-	fd is descriptor you want to watch events on, mask is
-	event mask being composed of "r" or "w", timeout is
-	time after the event expires and oneshot is whether
-	the event auto-stop() itself or not.
+event.set(fd, "mask");
+	modify mask for fd.
+event.timer(arg, timeout)
 
-event.timer(timeout)
-	this will register new timer.
+fd/arg, read, write = event.poll()
+	return one event or sleep until there are some. returns imediately with nil if there
+	are no events to be slept on/to be returned.
+	fd/arg - the fd where event happened or timer arg
+	read - a read event happened
+	write - write event happened
+	read&write are both nil in case of timer.
 
-event.start(ev)
-	start an previously stop()-ed event
+event is created by initial event.set(). it will be in stopped state. once you'll call event.start()
+the timer will start counting and event is reported either after timeout or if something happens.
+you've to restart the event using event.start() after timeout/event received.
 
-event.stop(ev)
-	temporarily suspend event notification
+note that there are no methods to delete events. an event is destroyed once the arg/fd is not referenced
+by anyone else (weak keys).
 
-event.del(ev)
-	remove the event completely. this is also
-	our __gc method so dropping all references
-	to the event (=nil) is ok too.
+this means doing event.set("mytimer", nil, 1000) is pretty stupid.
+correct is:
 
-event.poll()
-	this function returns and remove one pending event off the queue.
+timerid = {}
+event.set(timerid, nil, 1000)
+....
+timerid = nil <- now the timer will get cancelled
 
-	returns three values:
-	event - the event structure being in question
-	read - it was read event
-	write - it was write event
-
-	if read and write are both nil, then the event has
-	timeouted.
-
-	if 'event' is nil it means that there are no events
-	to be waited upon. this causes the for loop to be
-	terminated.
-
-	intended use as an infinite stateless iterator:
-	for ev, read, write in event.poll do
-		if (read) then
-			process_read(ev)
-		end
-		if (write) then
-			process_write(ev)
-		end
-	end
-
-	Having no () after event.poll is ok, it should be self-explanatory
-	if you know how 'for' works. If you do not, then don't even try
-	using ()'s, it will fail miserably (something about event
-	not being a function :)
-
-
-* To modify a running event, use:
-
-event.fd(ev[, newfd])
-	assign a new fd to the event. if no argument
-	is given, the old fd is returned.
-
-event.mask(ev[, newmask])
-	change events mask to newmask. newmask
-	can be of the form:
-		+r-w - will add read mask/delete write mask
-		rw - assign absolute value, thus empty string leads to no
-		events.
-	if no args, old mask is returned.
-
-event.timeout(ev[, newtimeout])
-	change timeout of given event.
-
-event.oneshot(ev[, newoneshot])
-	modify event's behaviour, eg. whether it's oneshot or not
-
-
+because we're using weak tables for everything, you must use referenced types, such as tables,
+threads or userdata. other will just produce incorrect results and the timer will simply disappear
+after first gc cycle.

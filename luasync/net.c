@@ -19,7 +19,7 @@
 
 #include "err.h"
 #include "buf.h"
-#include "net.h"
+#include "event.h"
 
 #define	SOCK_TCP	1
 #define	SOCK_UDP	2
@@ -64,10 +64,17 @@ static	inline	struct sock *mksock(lua_State *L)
 	s->flags = 0;
 	luaL_getmetatable(L, SOCKHANDLE);
 	lua_setmetatable(L, -2);
+
+	/* put it into the registry too */
+	lua_pushlightuserdata(L, s);
+	lua_pushvalue(L, -2);
+	lua_rawset(L, LUA_REGISTRYINDEX);
+
+	/* initialize events */
+	ev_sinit(s);
 	return s;
 }
 
-#define tosock(L, off) luaL_checkudata(L, off, SOCKHANDLE)
 
 /* create tcp/udp socket */
 static	int	net_ip(lua_State *L, int type, int proto)
@@ -558,6 +565,17 @@ static	int	net_sendto(struct lua_State *L)
 	return net_send_dgram(L, s, buf, &sin);
 }
 
+static	int net_gc(lua_State *L)
+{
+	struct	sock *s = lua_touserdata(L, 1);
+	ev_unset(s);
+
+	lua_pushlightuserdata(L, s);
+	lua_pushnil(L);
+	lua_rawset(L, LUA_REGISTRYINDEX);
+	return 0;
+}
+
 static	luaL_reg net_meth[] = {
 	{ "tcp",	net_tcp },
 	{ "udp",	net_udp },
@@ -572,6 +590,7 @@ static	luaL_reg net_meth[] = {
 	{ "recvfrom",	net_recvfrom },
 	{ "send",	net_send },
 	{ "sendto",	net_sendto },
+	{ "__gc",	net_gc },
 	{ NULL, NULL }
 };
 

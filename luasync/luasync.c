@@ -4,7 +4,7 @@
 
 #include "err.h"
 #include "buf.h"
-#include "net.h"
+#include "event.h"
 
 LUALIB_API int luaopen_luasync(lua_State *L)
 {

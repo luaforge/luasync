@@ -4,9 +4,12 @@
 #define DEFAULT_LISTEN_QUEUE 16
 #define SOCKHANDLE "sock*"
 
+#define tosock(L, off) luaL_checkudata(L, off, SOCKHANDLE)
+
 struct	sock {
 	int	fd;	/* network socket descriptor */
 	int	flags;
+	event_t	event;
 };
 
 extern	int	net_init(struct lua_State *L);

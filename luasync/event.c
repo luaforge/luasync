@@ -1,325 +1,209 @@
 /*
- * $Id: event.c,v 1.3 2006-05-15 07:36:51 ezdy Exp $
+ * $Id: event.c,v 1.4 2006-05-20 00:11:01 ezdy Exp $
  *
- * libevent bindings. we're not using callbacks, though it would be cool,
- * because lua->c->lua would stand in the way of coroutines.
+ * libevent binding. rewritten completely while using some
+ * of libevents internals to save us some additional linked list
+ * bouncing.
+ *
  */
 
-#include <stdlib.h>
-#include <stdio.h>
+#define EVENT_C
 
-#include <sys/types.h>
-#include <lua.h>
-#include <lualib.h>
-#include <lauxlib.h>
-#include <assert.h>
-#include <string.h>
-#include <sys/time.h>
 
-#include <event.h>
 #include "ll.h"
 
-#define EVHANDLE "ev*"
-#define EVENTAB "event.ev2ud"
+#define ID2TIMER "id2timer"
+#define TIMER2ID "timer2id"
 
-int	default_timeout = 60000;
-llist	completed = LL_INIT(completed);
 
-#define	getevent(L) luaL_checkudata(L, 1, EVHANDLE)
+#include "event.h"
 
-/*************************************************************************
- * structs 
- *************************************************************************/
-/* this is the event as seen by lua */
-/*************************************************************************
- * utility
- *************************************************************************/
-static	struct timeval *t2tv(int timeout)
+static	mtime	now;
+static	llist	timers;
+
+static	void	updatenow()
 {
-	static struct timeval tv;
-	tv.tv_sec = timeout/1000;
-	tv.tv_usec = (timeout%1000)*1000;
-	return &tv;
+	struct	timeval tv;
+	gettimeofday(&tv, NULL);
+	now = tv.tv_sec * 1000;
+	now += tv.tv_usec / 1000;
 }
 
-static	void	event_start(struct luaevent *le)
+/* set new event mask for a socket */
+int	event_set(lua_State *L)
 {
-	if (!le->started)
-		return;
-	/*printf("%d\n", le->timeout);*/
-	event_add(&le->ev, le->timeout?t2tv(le->timeout):NULL);
-}
+	struct	sock *sock;
+	const char	*mask;
+	int	ev_mask = 0;
 
-static	void	event_stop(struct luaevent *le)
-{
-	if (!le->started)
-		return;
-	event_del(&le->ev);
-}
+	sock = tosock(L, 1);
+	mask = lua_tostring(L, 2);
+	if (!mask)
+		return 0;
 
-
-static	void	event_cb(int fd, short event, void *d)
-{
-	struct	luaevent *ev = d;
-	if (ev->completed)
-		return;
-	ev->completed = 1;
-	ll_add(completed.prev, &ev->clist);
-}
-
-/* parse given mask for +-rw */
-static	short	parsemask(short orig, char *mask)
-{
-	char *p = mask;
-	int mode = 1; /* + */
-	while (*p) {
-		short flag;
-		switch (*p++) {
-			case '+':
-				mode = 1;
+	if (mask) {
+		/* set the mask if specified */
+		while (*mask++) {
+			if (*mask == 'r') {
+				ev_mask |= EV_READ;
 				continue;
-			case '-':
-				mode = 0;
-				continue;
-			case 'r':
-				flag = EV_READ;
-				break;
-			case 'w':
-				flag = EV_WRITE;
-				break;
-			default:
-				continue;
-		}
-		if (mode)
-			orig |= flag;
-		else
-			orig &= ~flag;
-	}
-	return orig;
-}
-
-static	char *printmask(short mask)
-{
-	if ((mask & (EV_READ|EV_WRITE)) == (EV_READ|EV_WRITE))
-		return "rw";
-	if (mask & EV_READ)
-		return "r";
-	if (mask & EV_WRITE)
-		return "w";
-	return "";
-}
-
-
-/*************************************************************************
- * lua visible
- *************************************************************************/
-static	int	ev_add(lua_State *L)
-{
-	sockd	*fd;
-	int	oneshot = 0;
-	struct	luaevent *le;
-	char	*mask;
-	int	timeout;
-
-
-	/* get args */
-	fd = luaL_checkudata(L, 1, SOCKHANDLE);
-	mask = (char *) luaL_optstring(L, 2, "rw");
-	timeout = luaL_optint(L, 3, default_timeout);
-	if (lua_isboolean(L, 4))
-		oneshot = lua_toboolean(L, 4);
-
-	le = lua_newuserdata(L, sizeof(*le));
-	ll_add(&fd->events, &le->fdevent);
-	le->mask = parsemask(oneshot?0:EV_PERSIST, mask);
-	event_set(&le->ev, fd->fd, le->mask, event_cb, le);
-	le->completed = le->started = 0;
-	le->timeout = timeout;
-
-	le->started = 1;
-	event_start(le);
-
-	/* assign methods */
-	luaL_getmetatable(L, EVHANDLE);
-	lua_setmetatable(L, -2);
-
-	/* and map to light userdata */
-	lua_pushliteral(L, EVENTAB);
-	lua_rawget(L, LUA_REGISTRYINDEX);
-
-	lua_pushlightuserdata(L, le);
-	lua_pushvalue(L, -3);
-	lua_rawset(L, -3);
-	lua_pop(L, 1);
-
-	return 1;
-}
-
-static	int	ev_fd(lua_State *L)
-{
-	struct	luaevent *le = getevent(L);
-	if (!lua_isnil(L, 2)) {
-		sockd *fd = lua_checkudata(L, 2, SOCKHANDLE);
-		event_stop(le);
-		ll_add(&fd->events, &le->fdevent);
-		event_set(&le->ev, fd->fd, le->mask, event_cb, le);
-		event_start(le);
-	}
-	lua_pushnumber(L, le->ev.ev_fd);
-	return 1;
-}
-
-static	int	ev_mask(lua_State *L)
-{
-	struct	luaevent *le = getevent(L);
-	if (lua_isstring(L, 2)) {
-		short mask = parsemask(le->mask, (char *) lua_tostring(L, 2));
-		if (le->mask != mask) {
-			le->mask = mask;
-			event_stop(le);
-			event_set(&le->ev, le->ev.ev_fd, le->mask, event_cb, le);
-			event_start(le);
+			}
+			if (*mask == 'w')
+				ev_mask |= EV_WRITE;
 		}
 	}
-	lua_pushstring(L, printmask(le->mask));
-	return 1;
-}
-
-static	int	ev_timeout(lua_State *L)
-{
-	struct	luaevent *le = getevent(L);
-	if (lua_isnumber(L, 2)) {
-		int timeout = lua_tointeger(L, 2);
-		if (timeout <= 0)
-			timeout = 0;
-		if (le->timeout != timeout) {
-			event_stop(le);
-			event_set(&le->ev, le->ev.ev_fd, le->mask, event_cb, le);
-			event_start(le);
-		}
-	}
-	lua_pushinteger(L, le->timeout);
-	return 1;
-}
-
-static	int	ev_oneshot(lua_State *L)
-{
-	struct	luaevent *le = getevent(L);
-	if (lua_isboolean(L, 2)) {
-		short oneshot = lua_toboolean(L, 2)?0:EV_PERSIST;
-		if ((le->mask & EV_PERSIST) != oneshot) {
-			le->mask |= oneshot;
-			event_stop(le);
-			event_set(&le->ev, le->ev.ev_fd, le->mask, event_cb, le);
-			event_start(le);
-		}
-	}
-	lua_pushboolean(L, !(le->mask & EV_PERSIST));
-	return 1;
-}
-
-
-
-static	int	ev_start(lua_State *L)
-{
-	struct	luaevent *le = getevent(L);
-
-	if (le->deleted)
-		luaL_argerror(L, 1, "cannot start deleted event (zombie)");
-
-	if (!le->started) {
-		le->started = 1;
-		event_start(le);
-	}
+	ev_set(sock, ev_mask);
 	return 0;
 }
 
-static	int	ev_stop(lua_State *L)
+static	void	timer_schedule(struct timer *t, int timeout)
 {
-	struct	luaevent *le = getevent(L);
-	if (le->started) {
-		event_stop(le);
-		le->started = 0;
+	llist	*ll;
+	struct	timer *st;
+
+	if (timeout < 0)
+		return;
+
+	t->expired = 0;
+	t->expire = now + timeout;
+
+	/* shortcut -> see if we're the last timer right away */
+	if (!ll_empty(&timers)) {
+		st = ll_get(timers.prev, struct timer, list);
+		if (t->expire >= st->expire) {
+			ll_add(&st->list, &t->list);
+			return;
+		}
+	} else {
+		ll_add(&timers, &t->list);
+		return;
 	}
-	return 0;
+
+	/* otherwise exhaustive search */
+	ll_for(timers, ll) {
+		st = ll_get(ll, struct timer, list);
+		if (t->expire < st->expire) {
+			ll_add(st->list.prev, &t->list);
+			return;
+		}
+	}
+
+	/* never reached */
+	abort();
 }
 
-static	int	ev_del(lua_State *L)
+/* set up a new or reschedule existing timer */
+int	event_timer(lua_State *L)
 {
-	struct	luaevent *le = getevent(L);
+	struct	timer *timer;
+	int	timeout = luaL_checkint(L, 2);
 
-	event_stop(le);
-	le->started = 0;
-	le->deleted = 1;
-	if (le->completed) {
-		ll_del(&le->clist);
-		le->completed = 0;
-	}
-	/* dissaassoc fd from this event */
-	if (!ll_empty(&le->fdevent)) {
-		ll_del(&le->fdevent);
-		LL_CLEAR(le->fdevent);
-	}
-	return 0;
-}
-
-/* poll for incoming events:
-   event.poll()
- */
-static	int	ev_poll(lua_State *L)
-{
-	struct	luaevent *ev;
-
-	/* nothing to return - wait */
-	while (ll_empty(&completed)) {
-		/* no events at all */
-		if (event_loop(EVLOOP_ONCE) != 0)
-			return 0;
-	}
-
-	ev = ll_get(completed.next, struct luaevent, clist);
-	ll_del(&ev->clist);
-
-	/* make the event stopped if it was not persistent (i.e. was oneshot) or timeout happened */
-	if ((!(ev->mask & EV_PERSIST)) || (ev->ev.ev_res & EV_TIMEOUT))
-		ev->started = 0;
-	assert(ev->completed);
-	ev->completed = 0;
-
-	/* get the event udata's value */
-	lua_pushliteral(L, EVENTAB);
-	lua_rawget(L, LUA_REGISTRYINDEX);
-	lua_pushlightuserdata(L, ev);
+	/* arg -> timer struct mapping */
+	lua_getfield(L, LUA_REGISTRYINDEX, ID2TIMER);
+	lua_pushvalue(L, 1);
 	lua_rawget(L, -2);
+	if (!(timer = lua_touserdata(L, -1))) {
+		/* create new timer */
+		lua_pushvalue(L, 1);
+		timer = lua_newuserdata(L, sizeof(struct timer));
+		/* id => timer mapping */
+		lua_rawset(L, -4);
 
-	/* return ev, nil, nil on timeout */
-	if (ev->ev.ev_res & EV_TIMEOUT)
-		return 1;
+		lua_getfield(L, LUA_REGISTRYINDEX, TIMER2ID);
+		/* timer -> id mapping */
+		lua_pushlightuserdata(L, timer);
+		lua_pushvalue(L, 1);
+		lua_rawset(L, -3);
 
-	lua_pushboolean(L, ev->ev.ev_res & EV_READ);
-	lua_pushboolean(L, ev->ev.ev_res & EV_WRITE);
+		LL_CLEAR(timer->list);
+		timer->expired = 0;
+	}
+
+	/* timer not expired yet, remove it from the queue for reschedule */
+	if (!timer->expired) {
+		ll_del(&timer->list);
+		LL_CLEAR(timer->list);
+	}
+
+	/* insert the timer into the timer list */
+	if (ll_empty(&timer->list))
+		timer_schedule(timer, timeout);
+	return 0;
+}
+
+/* timer userdata gc, means timer id was already gced. cancel the timer if it was in list */
+int	event_timer_gc(lua_State *L)
+{
+	struct	timer *t = lua_touserdata(L, 1);
+	if (!ll_empty(&t->list)) {
+		ll_del(&t->list);
+		LL_CLEAR(t->list);
+		lua_getfield(L, LUA_REGISTRYINDEX, TIMER2ID);
+	}
+	return 0;
+}
+
+int	event_poll(lua_State *L)
+{
+	struct	sock *sock;
+	mtime	ttw = 1000;
+retry:
+	updatenow();
+	/* return timers first, if any */
+	if (!ll_empty(&timers)) {
+		struct timer *t = ll_get(timers.next, struct timer, list);
+		if (t->expire >= now) {
+			ll_del(&t->list);
+			LL_CLEAR(t->list);
+			t->expired = 1;
+			lua_getfield(L, LUA_REGISTRYINDEX, TIMER2ID);
+			lua_pushlightuserdata(L, t);
+			lua_rawget(L, -2);
+			if (lua_isnil(L, -1)) {
+				lua_settop(L, 0);
+				goto retry;
+			}
+			return 1;
+		}
+		ttw = t->expire - now;
+	}
+
+	if (!(sock = ev_get())) {
+		if (ev_wait(ttw) < 0)
+			return 0;
+		updatenow();
+		if (!(sock = ev_get()))
+			goto retry;
+	}
+
+	lua_pushlightuserdata(L, sock);
+	lua_rawget(L, LUA_REGISTRYINDEX);
+	lua_pushboolean(L, ev_res(sock) & EV_READ);
+	lua_pushboolean(L, ev_res(sock) & EV_WRITE);
 	return 3;
 }
 
 static	luaL_reg ev_meth[] = {
-	{ "add",	ev_add },
-	{ "fd",		ev_fd },
-	{ "mask",	ev_mask },
-	{ "timeout",	ev_timeout },
-	{ "oneshot",	ev_oneshot },
-	{ "start",	ev_start },
-	{ "stop",	ev_stop },
-	{ "del",	ev_del },
-	{ "poll",	ev_poll },
-	{ "__gc",	ev_del },
+	{ "set",	event_set },
+	{ "timer",	event_timer },
+	{ "poll",	event_poll },
 	{ NULL, NULL }
 };
 
-LUALIB_API int luaopen_event(lua_State *L)
+int event_init(lua_State *L)
 {
-	event_init();
+	/* id -> timer mapping, where 'id' is weak */
+	lua_pushliteral(L, ID2TIMER);
+	lua_newtable(L);	/* our weak table */
+	lua_newtable(L);	/* our meta table */
+	lua_pushliteral(L, "__mode");
+	lua_pushliteral(L, "k"); /* weak keys */
+	lua_rawset(L, -3);
+	lua_setmetatable(L, -2);
+	lua_rawset(L, LUA_REGISTRYINDEX);
 
-	lua_pushliteral(L, EVENTAB);
+	/* timer -> id mapping, where 'id' is weak */
+	lua_pushliteral(L, TIMER2ID);
 	lua_newtable(L);	/* our weak table */
 	lua_newtable(L);	/* our meta table */
 	lua_pushliteral(L, "__mode");
@@ -327,12 +211,8 @@ LUALIB_API int luaopen_event(lua_State *L)
 	lua_rawset(L, -3);
 	lua_setmetatable(L, -2);
 	lua_rawset(L, LUA_REGISTRYINDEX);
-	
 
-	luaL_newmetatable(L, EVHANDLE);
-	lua_pushvalue(L, -1);
-	lua_setfield(L, -2, "__index");
-	luaL_register(L, NULL, ev_meth);
 	luaL_register(L, "event", ev_meth);
+	return 0;
 }
 
