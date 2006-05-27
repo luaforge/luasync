@@ -1,5 +1,5 @@
 /*
- * $Id: buf.h,v 1.3 2006-05-15 07:36:51 ezdy Exp $
+ * $Id: buf.h,v 1.4 2006-05-27 03:19:21 ezdy Exp $
  * buf.h - buffer VM implementation.
  * provides primitives for operating large blobs of data,
  * appending, prepending, inserting, cutting etc.
@@ -25,7 +25,7 @@
 #include "ll.h"
 #include "buf.h"
 
-#if 0
+#if 1
 #define DEBUG(fmt...) { fprintf(stderr, fmt); fprintf(stderr, "\n"); fflush(stderr); }
 #else
 #define DEBUG(...)
@@ -158,6 +158,7 @@ static inline struct bufchain *buf_grab(struct luabuf *in, int len, int force)
 {
 	struct	bufchain *bc;
 
+	DEBUG("grabbing %d bytes, force=%d", len, force);
 	if (force || (!in->len))
 		goto noavail;
 	assert(!ll_empty(&in->chain));
@@ -165,23 +166,27 @@ static inline struct bufchain *buf_grab(struct luabuf *in, int len, int force)
 	if (!bc->raw->free)
 		goto noavail;
 
+
 	return bc;
 noavail:
+	DEBUG("not enough space available");
 	bc = malloc(sizeof(*bc));
 	bc->len = bc->start = 0;
 	bc->raw = bufr_new(len);
 	bc->raw->len = 0;
 	bc->raw->free = len;
-	ll_add(&in->chain, &bc->list);
+	ll_add(in->chain.prev, &bc->list);
 	return bc;
 }
 
 static	inline	void buf_commit(struct luabuf *in, int len)
 {
 	struct	bufchain *bc;
+	DEBUG("commiting %d bytes to %p (%d)", len, in, bc->raw->free);
 	bc = ll_get(in->chain.prev, struct bufchain, list);
 	assert(len <= bc->raw->free);
 	bc->len += len;
+	in->len += len;
 	bc->raw->len += len;
 	bc->raw->free -= len;
 	if (!bc->len) {

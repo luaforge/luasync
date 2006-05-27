@@ -1,5 +1,5 @@
 /*
- * $Id: event.c,v 1.4 2006-05-20 00:11:01 ezdy Exp $
+ * $Id: event.c,v 1.5 2006-05-27 03:19:21 ezdy Exp $
  *
  * libevent binding. rewritten completely while using some
  * of libevents internals to save us some additional linked list
@@ -32,27 +32,27 @@ static	void	updatenow()
 /* set new event mask for a socket */
 int	event_set(lua_State *L)
 {
-	struct	sock *sock;
-	const char	*mask;
-	int	ev_mask = 0;
+	struct	sock *sock = tosock(L, 1);
+	int	newmask = sock->evmask;
 
-	sock = tosock(L, 1);
-	mask = lua_tostring(L, 2);
-	if (!mask)
-		return 0;
-
-	if (mask) {
-		/* set the mask if specified */
-		while (*mask++) {
-			if (*mask == 'r') {
-				ev_mask |= EV_READ;
-				continue;
-			}
-			if (*mask == 'w')
-				ev_mask |= EV_WRITE;
-		}
+	if (!lua_isnil(L, 2)) {
+		if (lua_toboolean(L, 2))
+			newmask |= EV_READ;
+		else
+			newmask &= ~EV_READ;
 	}
-	ev_set(sock, ev_mask);
+
+	if (!lua_isnil(L, 3)) {
+		if (lua_toboolean(L, 3))
+			newmask |= EV_WRITE;
+		else
+			newmask &= ~EV_WRITE;
+	}
+
+	/* change only if needed */
+	if (newmask != sock->evmask)
+		ev_set(sock, newmask);
+	sock->evmask = newmask;
 	return 0;
 }
 
@@ -61,7 +61,7 @@ static	void	timer_schedule(struct timer *t, int timeout)
 	llist	*ll;
 	struct	timer *st;
 
-	if (timeout < 0)
+	if (timeout <= 0)
 		return;
 
 	t->expired = 0;
@@ -192,6 +192,9 @@ static	luaL_reg ev_meth[] = {
 
 int event_init(lua_State *L)
 {
+	ev_init();
+	LL_CLEAR(timers);
+
 	/* id -> timer mapping, where 'id' is weak */
 	lua_pushliteral(L, ID2TIMER);
 	lua_newtable(L);	/* our weak table */

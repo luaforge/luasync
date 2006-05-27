@@ -9,10 +9,12 @@
 struct	sock {
 	int	fd;	/* network socket descriptor */
 	int	flags;
+	int	evmask;
 	event_t	event;
 };
 
 extern	int	net_init(struct lua_State *L);
+extern	int	event_init(struct lua_State *L);
 
 /* linux specific */
 #ifndef UDP_CORK

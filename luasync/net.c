@@ -62,6 +62,7 @@ static	inline	struct sock *mksock(lua_State *L)
 	struct sock *s = lua_newuserdata(L, sizeof(*s));
 
 	s->flags = 0;
+	s->evmask = 0;
 	luaL_getmetatable(L, SOCKHANDLE);
 	lua_setmetatable(L, -2);
 
@@ -596,10 +597,11 @@ static	luaL_reg net_meth[] = {
 
 int	net_init(struct lua_State *L)
 {
-	luaL_register(L, "net", net_meth);
 	luaL_newmetatable(L, SOCKHANDLE);
 	lua_pushvalue(L, -1);
 	lua_setfield(L, -2, "__index");
+	luaL_register(L, NULL, net_meth);
+	luaL_register(L, "net", net_meth);
 	return 0;
 }
 

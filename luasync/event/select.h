@@ -40,7 +40,7 @@
 EXTERN	fd_set	rfds, wfds, trfds, twfds;
 EXTERN	int	fdmax, nres;
 EXTERN	llist	slist, *curfd;
-#define ev_init() { LL_CLEAR(&slist); }
+#define ev_init() { LL_CLEAR(slist); }
 
 #define ev_sinit(sock) LL_CLEAR((sock->event))
 
