@@ -1,9 +1,11 @@
-$Id: event.txt,v 1.3 2006-05-20 00:11:01 ezdy Exp $
+$Id: event.txt,v 1.4 2006-05-27 03:20:37 ezdy Exp $
 ---------------
 Event interface
 ---------------
-event.set(fd, "mask");
-	modify mask for fd.
+event.set(fd, read, write);
+	modify mask for fd. read & write are boolean values. true if youre
+	interested in the event, false if you're not, nil if you want to preserve
+	original value.
 event.timer(arg, timeout)
 
 fd/arg, read, write = event.poll()
