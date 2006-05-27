@@ -1,3 +1,15 @@
+2006-05-27 05:20  ezdy
+
+	* doc/event.txt: updated docs for event.set
+
+2006-05-27 05:19  ezdy
+
+	* Makefile, buf.h, event.c, luasync.c, net.c, net.h,
+	  event/select.h: fixed event.* metatables, fixed buf_grab/commit
+	  len counters, event_set rewritten so it accepts event.set(ev, r,
+	  w) where r & w are booleans and passing a nil value leaves the
+	  value unchanged
+
 2006-05-20 02:11  ezdy
 
 	* Makefile, event.c, luasync.c, net.c, net.h, doc/event.txt,
