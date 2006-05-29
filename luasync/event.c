@@ -1,5 +1,5 @@
 /*
- * $Id: event.c,v 1.5 2006-05-27 03:19:21 ezdy Exp $
+ * $Id: event.c,v 1.6 2006-05-29 02:20:31 ezdy Exp $
  *
  * libevent binding. rewritten completely while using some
  * of libevents internals to save us some additional linked list
@@ -146,7 +146,7 @@ int	event_timer_gc(lua_State *L)
 int	event_poll(lua_State *L)
 {
 	struct	sock *sock;
-	mtime	ttw = 1000;
+	mtime	ttw = 1000000;
 retry:
 	updatenow();
 	/* return timers first, if any */

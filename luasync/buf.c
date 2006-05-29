@@ -1,5 +1,5 @@
 /*
- * $Id: buf.c,v 1.3 2006-05-15 07:36:51 ezdy Exp $
+ * $Id: buf.c,v 1.4 2006-05-29 02:20:31 ezdy Exp $
  * buffer VM implementation.
  * provides primitives for operating large blobs of data,
  * appending, prepending, inserting, cutting etc.
@@ -58,7 +58,7 @@ static	int	bufL_sub(struct lua_State *L)
 
 	/* find the appropiate chunk */
 	if (!(bc = buf_findpos(in, start, &rp)))
-		return 1;
+		return 0;
 
 	clen = bc->len - rp;
 	while (len) {
@@ -90,23 +90,23 @@ static	int	bufL_dup(struct lua_State *L)
 	return 1;
 }
 
-/* buf.cut(buf, start, len)
+/* buf.rm(buf, start, len)
  * use 8< or primitive force to cut off some part
  * of buffer. this modifies the ORIGINAL BUFFER
  * and just returns it.
  * this is by no means the most obfuscated algorithm,
  * and thus probably the buggy one.
  */
-static	int	bufL_cut(struct lua_State *L)
+static	int	bufL_rm(struct lua_State *L)
 {
-	struct	luabuf *in, *out;
-	struct	bufchain *bc, *bcnext, *bn;
+	struct	luabuf *in;
+	llist	*bcnext;
+	struct	bufchain *bc, *bn;
 	int	start, olen, len, rp;
 
 	/* get args */
 	lua_settop(L, 3);
 	in = (void *) lua_tobuf(L, 1, BUF_HARD|BUF_CONV);
-	out = buf_new(L);
 	start = luaL_optint(L, 2, 0);
 
 	/* some sanity */
@@ -124,16 +124,16 @@ static	int	bufL_cut(struct lua_State *L)
 		return 0;
 
 	olen = len;
-	bcnext = ll_get(bc->list.next, struct bufchain, list);
+	bcnext = bc->list.next;
 	while (len > 0) {
 		DEBUG("rp=%d, bclen=%d", rp, bc->len);
 		if (rp == bc->len) {
-			bc = bcnext;
-			bcnext = ll_get(bc->list.next, struct bufchain, list);
-			if (bc->list.next == &in->chain) {
+			bc = ll_get(bcnext, struct bufchain, list);
+			if (bcnext == &in->chain) {
 				fprintf(stderr, "shouldnothappen: list too short?");
 				goto out;
 			}
+			bcnext = bc->list.next;
 			rp = 0;
 		}
 
@@ -180,6 +180,105 @@ out:
 	lua_pushinteger(L, olen);
 	return 1;
 }
+
+/* this is equal to bufL_rm, except that
+   it returns the cutted part as a new buffer */
+static	int	bufL_cut(struct lua_State *L)
+{
+	struct	luabuf *in, *out;
+	llist	*bcnext;
+	struct	bufchain *bc, *bn;
+	int	start, olen, len, rp;
+
+	/* get args */
+	lua_settop(L, 3);
+	in = (void *) lua_tobuf(L, 1, BUF_HARD|BUF_CONV);
+	out = buf_new(L);
+	start = luaL_optint(L, 2, 0);
+
+	/* some sanity */
+	if (start < 0)
+		start = 0;
+	if (start > in->len)
+		start = in->len;
+	len = luaL_optint(L, 3, in->len - start);
+	if (len + start > in->len)
+		len = in->len - start;
+	assert((len + start) <= in->len); assert(len >= 0); assert(start >= 0);
+
+	/* find the appropiate chunk */
+	if (!(bc = buf_findpos(in, start, &rp)))
+		return 0;
+
+	olen = len;
+
+	bcnext = bc->list.next;
+	while (len > 0) {
+		DEBUG("rp=%d, bclen=%d", rp, bc->len);
+		if (rp == bc->len) {
+			bc = ll_get(bcnext, struct bufchain, list);
+			if (bcnext == &in->chain) {
+				fprintf(stderr, "shouldnothappen: list too short?");
+				goto out;
+			}
+			bcnext = bc->list.next;
+			rp = 0;
+		}
+
+		assert(rp <= bc->len);
+		/* it is possible to cut out this whole block if
+                   rp is 0 and len >= whole block */
+		if ((rp == 0) && (len >= bc->len)) {
+			len -= bc->len;
+			ll_del(&bc->list);
+
+			ll_add(out->chain.prev, &bc->list);
+			out->len += bc->len;
+			DEBUG("cut bn->len=%d, out->len=%d, bc=%p", bc->len, out->len, bc);
+			rp = bc->len;
+			continue;
+		}
+		/* we can fall in here only in 2 cases:
+			1. rp > 0, which means we need to preserve 0 up to rp of buffer
+			2. rp+len < bc->len which means that offset rp+len up to bc->len
+		           needs to be preserved
+		*/
+		assert((rp > 0) || (rp+len < bc->len));
+
+		/* getting the cutted part is quite easy .. */
+		bn = bufc_clone(bc, rp, (rp+len)>(bc->len-rp)?(bc->len-rp):rp+len);
+		ll_add(out->chain.prev, &bn->list);
+		out->len += bn->len;
+		DEBUG("cut bn->len=%d, out->len=%d, bn=%p", bn->len, out->len, bn);
+
+		/* 1st case||2nd case */
+		if (rp > 0) {
+			/* 2nd case first as this might append to us.
+			   this means both cases happened and we've to split
+			   the struct into two */
+			if (rp + len < bc->len) {
+				bn = bufc_clone(bc, rp+len, bc->len - (rp+len));
+				ll_add(&bc->list, &bn->list);
+			}
+
+			len -= bc->len - rp;
+			bc->len = rp;
+		} else {
+			DEBUG("cut case 2");
+			/* it is only the 2nd case. in that case reuse old block struct */
+			bc->start = bc->start + rp+len;
+			bc->len = bc->len - (rp+len);
+			len = 0;
+		}
+	}
+out:
+	DEBUG("in->len=%d olen=%d, out->len=%d", in->len, olen, out->len);
+	assert(olen == out->len);
+	assert(in->len >= olen);
+	in->len -= olen;
+	return 1;
+}
+
 
 /*
  * Insert something somewhere in the buffer
@@ -495,6 +594,7 @@ static	int	bufL_gc(lua_State *L)
 	struct	luabuf *lb = lua_tobuf(L, 1, BUF_HARD);
 	ll_forsafe(lb->chain, i, s) {
 		struct bufchain *bc = ll_get(i, struct bufchain, list);
+		DEBUG("bc->len=%d, bc=%p", bc->len, bc);
 		len += bc->len;
 		bufr_put(bc->raw);
 		free(bc);
@@ -612,6 +712,7 @@ static	luaL_reg buf_meth[] = {
 	{ "sub",	bufL_sub },
 	{ "dup",	bufL_dup },
 	{ "cut",	bufL_cut },
+	{ "rm",		bufL_rm },
 	{ "insert", 	bufL_insert },
 	{ "append", 	bufL_append },
 	{ "prepend", 	bufL_prepend },

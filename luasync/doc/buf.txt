@@ -1,4 +1,4 @@
-$Id: buf.txt,v 1.2 2006-05-13 01:59:11 ezdy Exp $
+$Id: buf.txt,v 1.3 2006-05-29 02:20:31 ezdy Exp $
 ----------------
 Buffer interface
 ----------------
@@ -47,6 +47,10 @@ buf.concat(buf1,buf2,buf3,bufX...)
   
 buf.cut(buf, start, len)
 	cut off part of buffer the buffer starting at start of length len.
+	and return the cutted part as new buffer.
+
+buf.rm(buf, start, len)
+	dispose part of the buffer
 
 buf.insert(buf, offset, what)
 	insert buffer 'what' at position offset of buffer 'buf'
@@ -62,7 +66,7 @@ buf.prepend(buf, buf1, buf2, bufX...)
 	reversed order.
 
 * Read-only operations:
-buf.find(haystack, needle)
+buf.find(haystack, needle, [start[,len]])
 	find 'needle' in 'haystack' and return offset at which 'haystack' occurs.
 	do NOT use "if (not buf.find...)" because 0 is also valid offset, instead,
 	use if (buf.find(..) == nil)
