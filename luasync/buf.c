@@ -1,5 +1,5 @@
 /*
- * $Id: buf.c,v 1.5 2006-05-29 02:35:59 ezdy Exp $
+ * $Id: buf.c,v 1.6 2006-05-29 02:41:30 ezdy Exp $
  * buffer VM implementation.
  * provides primitives for operating large blobs of data,
  * appending, prepending, inserting, cutting etc.
@@ -619,6 +619,7 @@ static	inline	int subcomp(struct luabuf *big, struct luabuf *small, struct bufch
 	struct	bufchain *smallpos = ll_get(small->chain.next, struct bufchain, list);
 	int	tocmp, smalloff = 0;
 	while (1) {
+		char	*cmpa, *cmpb;
 		/* small went over the offset. go to next chunk */
 		if (smalloff >= smallpos->len) {
 			if (smallpos->list.next == &small->chain) /* we are at the end! */
@@ -635,9 +636,10 @@ static	inline	int subcomp(struct luabuf *big, struct luabuf *small, struct bufch
 		}
 
 		tocmp = MIN(bigpos->len - bigoff, smallpos->len - smalloff);
-		DEBUG("tocmp=%d", tocmp);
-		if (memcmp(bigpos->raw->data + bigpos->start + bigoff,
-			   smallpos->raw->data + smallpos->start + smalloff, tocmp)) {
+		cmpa = bigpos->raw->data + bigpos->start + bigoff;
+		cmpb = smallpos->raw->data + smallpos->start + smalloff;
+		DEBUG("tocmp=%d cmpa=%p cmpb=%p", tocmp, cmpa, cmpb);
+		if ((cmpa != cmpb) && memcmp(cmpa, cmpb, tocmp)) {
 			DEBUG("mismatch!");
 			return 0; /* not same */
 		}
