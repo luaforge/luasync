@@ -1,10 +1,9 @@
 /*
- * $Id: event.c,v 1.6 2006-05-29 02:20:31 ezdy Exp $
+ * $Id: event.c,v 1.7 2006-05-29 02:35:59 ezdy Exp $
  *
- * libevent binding. rewritten completely while using some
- * of libevents internals to save us some additional linked list
- * bouncing.
- *
+ * this used to be libevent. which was quite overkill and
+ * overbloat, so we're stuck with our own event notification
+ * again :/
  */
 
 #define EVENT_C

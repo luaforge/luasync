@@ -1,5 +1,5 @@
 /*
- * $Id: buf.c,v 1.4 2006-05-29 02:20:31 ezdy Exp $
+ * $Id: buf.c,v 1.5 2006-05-29 02:35:59 ezdy Exp $
  * buffer VM implementation.
  * provides primitives for operating large blobs of data,
  * appending, prepending, inserting, cutting etc.
@@ -649,34 +649,39 @@ static	inline	int subcomp(struct luabuf *big, struct luabuf *small, struct bufch
 	}
 }
 
-/* buf.find(buf, what) */
+/* buf.find(buf, what, start, len) */
 static	int	bufL_find(lua_State *L)
 {
 	struct	luabuf *big = lua_tobuf(L, 1, BUF_CONV|BUF_HARD);
 	struct	luabuf *small = lua_tobuf(L, 2, BUF_CONV|BUF_HARD);
 	struct	bufchain *bc;
 	int	bcpos, lpos, limit;
+	int	start, len;
 
-	/* common cases when there cannot be match a match */
-	if ((big->len == 0) || (small->len == 0) || (big->len < small->len))
+	start = luaL_optint(L, 3, 0);
+	len = luaL_optint(L, 4, big->len);
+
+	/* adjust len if too high */
+	if (start + len > big->len)
+		len = big->len - start;
+
+	/* common cases for no match */
+	if (start < 0 || len < 0 || !big->len || !small->len || len < small->len)
 		return 0;
 
-	limit = (big->len - small->len); /* position limit within big */
+	limit = start + (len - small->len); /* position limit within big */
 
-	bc = ll_get(big->chain.next, struct bufchain, list);
-	bcpos = 0;
-	lpos = 0;
-
-	for (bcpos = 0; bcpos <= limit; bcpos++) {
+	bc = buf_findpos(big, start, &lpos);
+	for (bcpos = start; bcpos <= limit; bcpos++) {
+		if (lpos >= bc->len) {
+			bc = ll_get(bc->list.next, struct bufchain, list);
+			lpos = 0;
+		}
 		if (subcomp(big, small, bc, lpos)) {
 			lua_pushinteger(L, bcpos);
 			return 1;
 		}
 		lpos++;
-		if (lpos >= bc->len) {
-			bc = ll_get(bc->list.next, struct bufchain, list);
-			lpos = 0;
-		}
 	}
 	return 0;
 }
