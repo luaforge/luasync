@@ -1,3 +1,10 @@
+2006-05-29 04:20  ezdy
+
+	* buf.c, event.c, doc/buf.txt: fixed buf.cut now returns the cutted
+	  part, buf.rm does not. fixed bug when cutting last part of the
+	  buffer chain. default socket event timeout changed from 1ms to 1s
+	  (when there are no timers..)
+
 2006-05-27 05:20  ezdy
 
 	* doc/event.txt: updated docs for event.set
