@@ -1,5 +1,5 @@
 /*
- * $Id: buf.h,v 1.4 2006-05-27 03:19:21 ezdy Exp $
+ * $Id: buf.h,v 1.5 2006-05-29 07:19:30 ezdy Exp $
  * buf.h - buffer VM implementation.
  * provides primitives for operating large blobs of data,
  * appending, prepending, inserting, cutting etc.
@@ -25,7 +25,7 @@
 #include "ll.h"
 #include "buf.h"
 
-#if 1
+#if 0
 #define DEBUG(fmt...) { fprintf(stderr, fmt); fprintf(stderr, "\n"); fflush(stderr); }
 #else
 #define DEBUG(...)
@@ -182,8 +182,8 @@ noavail:
 static	inline	void buf_commit(struct luabuf *in, int len)
 {
 	struct	bufchain *bc;
-	DEBUG("commiting %d bytes to %p (%d)", len, in, bc->raw->free);
 	bc = ll_get(in->chain.prev, struct bufchain, list);
+	DEBUG("commiting %d bytes to %p (%d), bc=%p", len, in, bc->raw->free, bc);
 	assert(len <= bc->raw->free);
 	bc->len += len;
 	in->len += len;

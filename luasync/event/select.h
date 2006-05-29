@@ -111,7 +111,7 @@ static	inline	struct sock *ev_get(void)
 	while ((curfd != &slist) && (nres > 0)) {
 		struct sock *sf = ll_get(curfd, struct sock, event);
 
-		if (FD_ISSET(sf->fd, &rfds) || FD_ISSET(sf->fd, &wfds)) {
+		if (FD_ISSET(sf->fd, &trfds) || FD_ISSET(sf->fd, &twfds)) {
 			nres--;
 			curfd = sf->event.next;
 			return sf;
@@ -121,5 +121,5 @@ static	inline	struct sock *ev_get(void)
 	return NULL;
 }
 
-#define ev_res(s) ((FD_ISSET(s->fd, &rfds)?EV_READ:0)|(FD_ISSET(s->fd, &wfds)?EV_WRITE:0))
+#define ev_res(s) ((FD_ISSET(s->fd, &trfds)?EV_READ:0)|(FD_ISSET(s->fd, &twfds)?EV_WRITE:0))
 #endif

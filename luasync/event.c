@@ -1,5 +1,5 @@
 /*
- * $Id: event.c,v 1.7 2006-05-29 02:35:59 ezdy Exp $
+ * $Id: event.c,v 1.8 2006-05-29 07:19:30 ezdy Exp $
  *
  * this used to be libevent. which was quite overkill and
  * overbloat, so we're stuck with our own event notification
@@ -11,11 +11,14 @@
 
 #include "ll.h"
 
-#define ID2TIMER "id2timer"
-#define TIMER2ID "timer2id"
-
 
 #include "event.h"
+
+#if 0
+#define DEBUG(fmt...) { fprintf(stderr, fmt); fprintf(stderr, "\n"); fflush(stderr); }
+#else
+#define DEBUG(...)
+#endif
 
 static	mtime	now;
 static	llist	timers;
@@ -24,8 +27,9 @@ static	void	updatenow()
 {
 	struct	timeval tv;
 	gettimeofday(&tv, NULL);
-	now = tv.tv_sec * 1000;
-	now += tv.tv_usec / 1000;
+	now = (mtime) tv.tv_sec * 1000;
+	now += (mtime)tv.tv_usec / 1000;
+	DEBUG("NOW: %lld, tv.tv_sec=%d\n", now, tv.tv_sec);
 }
 
 /* set new event mask for a socket */
@@ -49,8 +53,10 @@ int	event_set(lua_State *L)
 	}
 
 	/* change only if needed */
-	if (newmask != sock->evmask)
+	if (newmask != sock->evmask) {
+		DEBUG("ev_set(%p,%d)", sock, newmask);
 		ev_set(sock, newmask);
+	}
 	sock->evmask = newmask;
 	return 0;
 }
@@ -65,6 +71,7 @@ static	void	timer_schedule(struct timer *t, int timeout)
 
 	t->expired = 0;
 	t->expire = now + timeout;
+	DEBUG("timer expires @ %lld, now=%lld\n", t->expire, now);
 
 	/* shortcut -> see if we're the last timer right away */
 	if (!ll_empty(&timers)) {
@@ -145,13 +152,14 @@ int	event_timer_gc(lua_State *L)
 int	event_poll(lua_State *L)
 {
 	struct	sock *sock;
-	mtime	ttw = 1000000;
+	mtime	ttw = 1000;
 retry:
 	updatenow();
 	/* return timers first, if any */
 	if (!ll_empty(&timers)) {
 		struct timer *t = ll_get(timers.next, struct timer, list);
-		if (t->expire >= now) {
+		if (t->expire <= now) {
+			DEBUG("timer %p expire, expire=%lld, now=%lld", t, t->expire, now);
 			ll_del(&t->list);
 			LL_CLEAR(t->list);
 			t->expired = 1;
@@ -175,8 +183,10 @@ retry:
 			goto retry;
 	}
 
+	DEBUG("received event(s) on sock %p, fd=%d\n", sock, sock->fd);
+	lua_getfield(L, LUA_REGISTRYINDEX, TIMER2ID);
 	lua_pushlightuserdata(L, sock);
-	lua_rawget(L, LUA_REGISTRYINDEX);
+	lua_rawget(L, -2);
 	lua_pushboolean(L, ev_res(sock) & EV_READ);
 	lua_pushboolean(L, ev_res(sock) & EV_WRITE);
 	return 3;

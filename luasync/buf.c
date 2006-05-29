@@ -1,5 +1,5 @@
 /*
- * $Id: buf.c,v 1.6 2006-05-29 02:41:30 ezdy Exp $
+ * $Id: buf.c,v 1.7 2006-05-29 07:19:30 ezdy Exp $
  * buffer VM implementation.
  * provides primitives for operating large blobs of data,
  * appending, prepending, inserting, cutting etc.
@@ -123,6 +123,7 @@ static	int	bufL_rm(struct lua_State *L)
 	if (!(bc = buf_findpos(in, start, &rp)))
 		return 0;
 
+	DEBUG("doing rm for in=%p (bc=%p)", in, bc);
 	olen = len;
 	bcnext = bc->list.next;
 	while (len > 0) {
@@ -144,6 +145,7 @@ static	int	bufL_rm(struct lua_State *L)
 			len -= bc->len;
 			bufr_put(bc->raw);
 			ll_del(&bc->list);
+			rp = bc->len;
 			free(bc);
 			continue;
 		}
@@ -206,6 +208,7 @@ static	int	bufL_cut(struct lua_State *L)
 		len = in->len - start;
 	assert((len + start) <= in->len); assert(len >= 0); assert(start >= 0);
 
+
 	/* find the appropiate chunk */
 	if (!(bc = buf_findpos(in, start, &rp)))
 		return 0;
@@ -214,7 +217,7 @@ static	int	bufL_cut(struct lua_State *L)
 
 	bcnext = bc->list.next;
 	while (len > 0) {
-		DEBUG("rp=%d, bclen=%d", rp, bc->len);
+		DEBUG("bc=%p rp=%d, bclen=%d", bc, rp, bc->len);
 		if (rp == bc->len) {
 			bc = ll_get(bcnext, struct bufchain, list);
 			if (bcnext == &in->chain) {

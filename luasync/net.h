@@ -3,6 +3,9 @@
 
 #define DEFAULT_LISTEN_QUEUE 16
 #define SOCKHANDLE "sock*"
+#define ID2TIMER "id2timer"
+#define TIMER2ID "timer2id"
+
 
 #define tosock(L, off) luaL_checkudata(L, off, SOCKHANDLE)
 

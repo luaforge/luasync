@@ -59,18 +59,22 @@ static	int	str2sin(lua_State *L, int pos, struct sockaddr_in *sin)
 /* create our socket udata and assign metatables to it */
 static	inline	struct sock *mksock(lua_State *L)
 {
-	struct sock *s = lua_newuserdata(L, sizeof(*s));
+	struct sock *s;
 
+	s = lua_newuserdata(L, sizeof(*s));
+
+	s->fd = -1;
 	s->flags = 0;
 	s->evmask = 0;
 	luaL_getmetatable(L, SOCKHANDLE);
 	lua_setmetatable(L, -2);
 
 	/* put it into the registry too */
+	lua_getfield(L, LUA_REGISTRYINDEX, TIMER2ID);
 	lua_pushlightuserdata(L, s);
-	lua_pushvalue(L, -2);
-	lua_rawset(L, LUA_REGISTRYINDEX);
-
+	lua_pushvalue(L, -3);
+	lua_rawset(L, -3);
+	lua_pop(L, 1);
 	/* initialize events */
 	ev_sinit(s);
 	return s;
@@ -438,7 +442,10 @@ static	int	net_recv(struct lua_State *L)
 		bc = buf_grab(buf, MIN(len, NET_BUF_SIZE), 0);
 		got = read(s->fd, bc->raw->data + bc->start + bc->len, bc->raw->free);
 		if (got <= 0) {
-			err_no = errno;
+			if (got)
+				err_no = errno;
+			else
+				err_no = EPIPE;
 			buf_commit(buf, 0);
 			if (!sofar)
 				return 0;
@@ -570,10 +577,12 @@ static	int net_gc(lua_State *L)
 {
 	struct	sock *s = lua_touserdata(L, 1);
 	ev_unset(s);
-
-	lua_pushlightuserdata(L, s);
-	lua_pushnil(L);
-	lua_rawset(L, LUA_REGISTRYINDEX);
+	fprintf(stderr, "collected fd socket %p, fd %d\n", s, s->fd);
+	close(s->fd);
+	s->fd = -1;
+//	lua_pushlightuserdata(L, s);
+//	lua_pushnil(L);
+//	lua_rawset(L, LUA_REGISTRYINDEX);
 	return 0;
 }
 
