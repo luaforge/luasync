@@ -1,5 +1,5 @@
 /*
- * $Id: buf.h,v 1.5 2006-05-29 07:19:30 ezdy Exp $
+ * $Id: buf.h,v 1.6 2006-06-04 22:23:59 ezdy Exp $
  * buf.h - buffer VM implementation.
  * provides primitives for operating large blobs of data,
  * appending, prepending, inserting, cutting etc.
@@ -330,8 +330,10 @@ static	inline	struct	luabuf *lua_tobuf(struct lua_State *L, int pos, int flags)
 		DEBUG("the thing has metatable");
 		if (lua_rawequal(L, -1, -2)) {
 			lb = (void *) lua_touserdata(L, pos);
-			if (lb)
+			if (lb) {
+				lua_pop(L, 2);
 				return lb;
+			}
 		}
 		DEBUG("but not ours");
 
