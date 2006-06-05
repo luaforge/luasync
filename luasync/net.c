@@ -573,13 +573,15 @@ static	int	net_sendto(struct lua_State *L)
 	return net_send_dgram(L, s, buf, &sin);
 }
 
-static	int net_gc(lua_State *L)
+static	int net_close(lua_State *L)
 {
-	struct	sock *s = lua_touserdata(L, 1);
-	ev_unset(s);
-	fprintf(stderr, "collected fd socket %p, fd %d\n", s, s->fd);
-	close(s->fd);
-	s->fd = -1;
+	struct	sock *s = tosock(L, 1);
+	if (s->fd != -1) {
+		ev_unset(s);
+		fprintf(stderr, "collected fd socket %p, fd %d\n", s, s->fd);
+		close(s->fd);
+		s->fd = -1;
+	}
 //	lua_pushlightuserdata(L, s);
 //	lua_pushnil(L);
 //	lua_rawset(L, LUA_REGISTRYINDEX);
@@ -600,7 +602,7 @@ static	luaL_reg net_meth[] = {
 	{ "recvfrom",	net_recvfrom },
 	{ "send",	net_send },
 	{ "sendto",	net_sendto },
-	{ "__gc",	net_gc },
+	{ "__gc",	net_close },
 	{ NULL, NULL }
 };
 
