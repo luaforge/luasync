@@ -1,7 +1,10 @@
-# $Id: Makefile,v 1.7 2006-06-04 22:23:59 ezdy Exp $
+# $Id: Makefile,v 1.8 2006-06-05 22:45:17 ezdy Exp $
 # only for macosx now ;)
 
+
 CFLAGS=-I/usr/local/include -O0 -ggdb -Winline -Wall
+CFLAGS=-I/usr/local/include -O3 -Winline -Wall
+
 
 LDFLAGS=-bundle -undefined dynamic_lookup
 LD=export MACOSX_DEPLOYMENT_TARGET="10.3"; gcc

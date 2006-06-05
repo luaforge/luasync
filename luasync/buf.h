@@ -1,5 +1,5 @@
 /*
- * $Id: buf.h,v 1.6 2006-06-04 22:23:59 ezdy Exp $
+ * $Id: buf.h,v 1.7 2006-06-05 22:45:17 ezdy Exp $
  * buf.h - buffer VM implementation.
  * provides primitives for operating large blobs of data,
  * appending, prepending, inserting, cutting etc.
@@ -191,6 +191,7 @@ static	inline	void buf_commit(struct luabuf *in, int len)
 	bc->raw->free -= len;
 	if (!bc->len) {
 		ll_del(&bc->list);
+		bufr_put(bc->raw);
 		free(bc);
 	}
 }
@@ -211,7 +212,9 @@ static inline int	buf_tryfitbytes(struct luabuf *in, char *bytes, int len)
 			len = bc->raw->free;
 		/* the chunk must NOT overlap the free space */
 		assert(bc->start + bc->len < (bc->raw->len + bc->raw->free));
-		memcpy(bc->raw->data + bc->raw->len, bytes, len);
+		memcpy(bc->start + bc->raw->data + bc->raw->len, bytes, len);
+		DEBUG("TRYFITBYTES: len=%d,bc->raw->len=%d,in->len=%d,bc->raw->free=%d\n",len,bc->raw->len,in->len,bc->raw->free);
+		bc->len += len;
 		bc->raw->len += len;
 		in->len += len;
 		bc->raw->free -= len;
@@ -288,6 +291,8 @@ static inline struct bufchain *buf_findpos(struct luabuf *buf, int pos, int *ret
 	struct	bufchain *leftb, *rightb;
 	int	leftc, rightc;
 
+	assert(!ll_empty(&buf->chain));
+	DEBUG("@findpos buf=%p, buf->len=%d, pos=%d", buf, buf->len, pos);
 	right = left = &buf->chain;
 	if ((pos < 0) || (pos > buf->len))
 		return NULL;
@@ -317,6 +322,27 @@ static inline struct bufchain *buf_findpos(struct luabuf *buf, int pos, int *ret
 	return NULL;
 }
 
+
+static	int	buf_check(struct luabuf *lb)
+{
+#if 0
+	llist	*i, *s;
+	int	len = 0;
+	int	n = 0;
+	ll_forsafe(lb->chain, i, s) {
+		struct bufchain *bc = ll_get(i, struct bufchain, list);
+		len += bc->len;
+		n++;
+//		printf("bc->len %d\n", bc->len);
+	}
+//	printf("lb->len = %d, len=%d, nbc's=%d\n", lb->len, len, n);
+	assert(lb->len == len);
+#endif
+	return 0;
+}
+
+
+
 /* get a buffer from given pos of the stack. if hard is nonzero
    we will throw exception when there is nothing resembling
    our buffer. also we try to convert to buffer if there's
@@ -330,6 +356,7 @@ static	inline	struct	luabuf *lua_tobuf(struct lua_State *L, int pos, int flags)
 		DEBUG("the thing has metatable");
 		if (lua_rawequal(L, -1, -2)) {
 			lb = (void *) lua_touserdata(L, pos);
+			buf_check(lb);
 			if (lb) {
 				lua_pop(L, 2);
 				return lb;

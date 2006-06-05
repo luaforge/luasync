@@ -1,5 +1,5 @@
 /*
- * $Id: buf.c,v 1.7 2006-05-29 07:19:30 ezdy Exp $
+ * $Id: buf.c,v 1.8 2006-06-05 22:45:17 ezdy Exp $
  * buffer VM implementation.
  * provides primitives for operating large blobs of data,
  * appending, prepending, inserting, cutting etc.
@@ -55,6 +55,10 @@ static	int	bufL_sub(struct lua_State *L)
 	if (len + start > in->len)
 		len = in->len - start;
 	assert((len + start) <= in->len); assert(len >= 0); assert(start >= 0);
+
+	/* return just the empty buf */
+	if (ll_empty(&in->chain))
+		return 1;
 
 	/* find the appropiate chunk */
 	if (!(bc = buf_findpos(in, start, &rp)))
@@ -118,6 +122,9 @@ static	int	bufL_rm(struct lua_State *L)
 	if (len + start > in->len)
 		len = in->len - start;
 	assert((len + start) <= in->len); assert(len >= 0); assert(start >= 0);
+
+	if (ll_empty(&in->chain))
+		return 0;
 
 	/* find the appropiate chunk */
 	if (!(bc = buf_findpos(in, start, &rp)))
@@ -208,6 +215,8 @@ static	int	bufL_cut(struct lua_State *L)
 		len = in->len - start;
 	assert((len + start) <= in->len); assert(len >= 0); assert(start >= 0);
 
+	if (ll_empty(&in->chain))
+		return 1;
 
 	/* find the appropiate chunk */
 	if (!(bc = buf_findpos(in, start, &rp)))
@@ -311,11 +320,14 @@ static	int	bufL_insert(lua_State *L)
 		/* alright it is string. we might try some fun though: */
 		if (pos == in->len) {
 			int i;
+			DEBUG("trying to fit bytes");
 			i = buf_tryfitbytes(in, whats, whatslen);
 			if (i == whatslen)
 				return 1;
+			DEBUG("failed to fit, did only %d out of %d", i, whatslen);
 			whats += i;
 			whatslen -= i;
+			pos += i;
 		}
 	}
 	lua_settop(L, 1);
@@ -324,10 +336,16 @@ static	int	bufL_insert(lua_State *L)
 	if ((!what && !whatslen) || ((what) && (!what->len)))
 		return 1;
 	if (!what) {
+		DEBUG("doing buf-from-string for '%s'/%d", whats, whatslen);
 		what = buf_fromstring(L, whats, whatslen, pos == in->len);
 	} else {
 		/* create our private copy of the chain being appended */
 		what = buf_dup(L, what);
+	}
+
+	if (ll_empty(&in->chain)) {
+		ll_addlist(&in->chain, &what->chain);
+		goto out;
 	}
 
 	/* alright. find the pos */
@@ -348,6 +366,7 @@ static	int	bufL_insert(lua_State *L)
 		goto out;
 	}
 
+	DEBUG("rp=%d bc->len=%d", rp, bc->len);
 	assert(rp < bc->len);
 	/* other cases means we have to split the current chunk into two */
 	nb = bufc_clone(bc, rp, bc->len - rp);
@@ -364,6 +383,7 @@ out:
 	/* we must clear the chain in the dupped bufchain, otherwise
            our entries we just given to someone else would get garbage-collected. */
 	LL_CLEAR(what->chain);
+	DEBUG("insert: in->len = %d, what->len = %d", in->len, what->len);
 	in->len += what->len;
 	lua_pushinteger(L, what->len);
 	what->len = 0;
@@ -595,10 +615,12 @@ static	int	bufL_gc(lua_State *L)
 	llist	*i, *s;
 	int	len = 0;
 	struct	luabuf *lb = lua_tobuf(L, 1, BUF_HARD);
+	DEBUG("DOING GC %p", lb);
 	ll_forsafe(lb->chain, i, s) {
 		struct bufchain *bc = ll_get(i, struct bufchain, list);
 		DEBUG("bc->len=%d, bc=%p", bc->len, bc);
 		len += bc->len;
+		DEBUG("put count %d, rawlen=%d", bc->raw->refcount, bc->raw->len);
 		bufr_put(bc->raw);
 		free(bc);
 	}

@@ -28,27 +28,30 @@ struct	iofile {
 
 #define tofile(L, x) luaL_checkudata(L, x, IOFILE)
 
-static const char *fmodes[] = {
-	"XOTH", /* bit 1 */
-	"WOTH", /* bit 2 */
-	"ROTH", /* bit 3 */
-	"XGRP",
-	"WGRP",
-	"RGRP",
-	"XOWN",
-	"WOWN",
-	"ROWN", /* bit 9 */
-	"ISVTX",
-	"ISGID",
-	"ISUID",
-	"IFIFO",
-	"IFCHR",
-	"IFDIR",
-	"IFBLK",
-	"IFREG",
-	"IFLNK",
-	"IFSOCK",
-	NULL
+static const struct {
+	char *name;
+	int val;
+} fmodes[] = {
+	{ "XOTH", S_IXOTH }, /* bit 1 */
+	{ "WOTH", S_IWOTH }, /* bit 2 */
+	{ "ROTH", S_IROTH }, /* bit 3 */
+	{ "XGRP", S_IXGRP },
+	{ "WGRP", S_IWGRP },
+	{ "RGRP", S_IRGRP },
+	{ "XUSR", S_IXUSR },
+	{ "WUSR", S_IWUSR },
+	{ "RUSR", S_IRUSR }, /* bit 9 */
+	{ "ISVTX", S_ISVTX },
+	{ "ISGID", S_ISGID },
+	{ "ISUID", S_ISUID },
+	{ "IFIFO", S_IFIFO },
+	{ "IFCHR", S_IFCHR },
+	{ "IFDIR", S_IFDIR },
+	{ "IFBLK", S_IFBLK },
+	{ "IFREG", S_IFREG },
+	{ "IFLNK", S_IFLNK },
+	{ "IFSOCK", S_IFSOCK }, /* 19 */
+	{ NULL }
 };
 
 
@@ -62,12 +65,12 @@ static	int	str2mode(const char *s)
 	if (sscanf(s, "%u", &omode) == 1)
 		return omode;
 	for (t = strtok(fstr, "|,+ "); t; t = strtok(NULL, "|,+ ")) {
-		for (i = 0; fmodes[i]; i++)
-			if (!strcasecmp(t, fmodes[i])) {
-				omode |= 1<<(i+1);
+		for (i = 0; fmodes[i].name; i++)
+			if (!strcasecmp(t, fmodes[i].name)) {
+				omode |= fmodes[i].val;
 				break;
 			}
-		if (!fmodes[i])
+		if (!fmodes[i].name)
 			return -1;
 	}
 	return omode;
@@ -202,9 +205,9 @@ static	void getstat(lua_State *L, struct stat *st)
 	ITEM("blocks", blocks);
 	ITEM("blksize", blksize);
 
-	for (i = 0; i < 19; i++) {
-		if (st->st_mode & (1<<i)) {
-			lua_pushstring(L, fmodes[i]);
+	for (i = 0; fmodes[i].name; i++) {
+		if ((st->st_mode & fmodes[i].val) == fmodes[i].val) {
+			lua_pushstring(L, fmodes[i].name);
 			lua_pushboolean(L, 1);
 			lua_rawset(L, -3);
 		}
@@ -539,7 +542,7 @@ static	int	io_sendfile(lua_State *L)
 	off_t off = lua_tointeger(L, 3);
 	int count = luaL_optint(L, 4, INT_MAX);
 	off_t got = 0;
-	char buf[8192];
+	static char buf[16384];
 
 #ifdef HAVE_SENDFILE
 #ifdef HAVE_BSDSENDFILE

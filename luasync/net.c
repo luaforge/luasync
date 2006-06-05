@@ -578,7 +578,7 @@ static	int net_close(lua_State *L)
 	struct	sock *s = tosock(L, 1);
 	if (s->fd != -1) {
 		ev_unset(s);
-		fprintf(stderr, "collected fd socket %p, fd %d\n", s, s->fd);
+//		fprintf(stderr, "collected fd socket %p, fd %d\n", s, s->fd);
 		close(s->fd);
 		s->fd = -1;
 	}
@@ -602,6 +602,7 @@ static	luaL_reg net_meth[] = {
 	{ "recvfrom",	net_recvfrom },
 	{ "send",	net_send },
 	{ "sendto",	net_sendto },
+	{ "close",	net_close },
 	{ "__gc",	net_close },
 	{ NULL, NULL }
 };

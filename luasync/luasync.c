@@ -1,6 +1,7 @@
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
+#include <signal.h>
 
 #include "err.h"
 #include "buf.h"
@@ -9,6 +10,7 @@
 
 LUALIB_API int luaopen_luasync(lua_State *L)
 {
+	signal(SIGPIPE, SIG_IGN);
 	err_init(L);
 	buf_init(L);
 	net_init(L);
