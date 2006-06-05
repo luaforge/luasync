@@ -1,3 +1,31 @@
+2006-06-05 03:35  ezdy
+
+	* net.c: added explicit close(), to avoid fd leakage (gc is not a
+	  good way of dealing with precious resources)
+
+2006-06-05 00:23  ezdy
+
+	* Makefile, buf.h, io.c, io.h, luasync.c, doc/io.txt: introduced
+	  bio.* fs bindings, including sendfile for linux & bsd
+
+2006-05-29 09:19  ezdy
+
+	* buf.c, buf.h, event.c, net.c, net.h, event/select.h: fixed
+	  bufL_rm, socket lookup must be done through weak metatable,
+	  otherwise sockets wont get collected :/
+
+2006-05-29 04:41  ezdy
+
+	* buf.c: subcomp speedup (do not memcmp when the pointers are
+	  same..)
+
+2006-05-29 04:35  ezdy
+
+	* buf.c, event.c: removed misleading event.c comment about libevent
+	  (we've own notify now).  added support for offset and length for
+	  buf.find, so that buf.find(haystack, needle, start, len) will
+	  search only start-start+len of haystack.
+
 2006-05-29 04:20  ezdy
 
 	* buf.c, event.c, doc/buf.txt: fixed buf.cut now returns the cutted
