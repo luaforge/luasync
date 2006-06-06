@@ -1,3 +1,9 @@
+/*
+ * $Id: net.h,v 1.5 2006-06-06 01:39:03 ezdy Exp $
+ *
+ * Network sockets cruft
+ */
+
 #ifndef __NET_H
 #define __NET_H
 

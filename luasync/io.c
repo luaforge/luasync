@@ -1,3 +1,10 @@
+/*
+ * $Id: io.c,v 1.3 2006-06-06 01:39:03 ezdy Exp $
+ *
+ * disk I/O cruft
+ */
+
+
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>

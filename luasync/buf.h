@@ -1,5 +1,5 @@
 /*
- * $Id: buf.h,v 1.7 2006-06-05 22:45:17 ezdy Exp $
+ * $Id: buf.h,v 1.8 2006-06-06 01:39:03 ezdy Exp $
  * buf.h - buffer VM implementation.
  * provides primitives for operating large blobs of data,
  * appending, prepending, inserting, cutting etc.
@@ -25,7 +25,7 @@
 #include "ll.h"
 #include "buf.h"
 
-#if 0
+#if 1
 #define DEBUG(fmt...) { fprintf(stderr, fmt); fprintf(stderr, "\n"); fflush(stderr); }
 #else
 #define DEBUG(...)
@@ -159,10 +159,12 @@ static inline struct bufchain *buf_grab(struct luabuf *in, int len, int force)
 	struct	bufchain *bc;
 
 	DEBUG("grabbing %d bytes, force=%d", len, force);
-	if (force || (!in->len))
+	if (!in->len)
 		goto noavail;
 	assert(!ll_empty(&in->chain));
 	bc = ll_get(in->chain.prev, struct bufchain, list);
+	if ((bc->raw->free < len) && force)
+		goto noavail;
 	if (!bc->raw->free)
 		goto noavail;
 

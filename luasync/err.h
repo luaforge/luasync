@@ -1,3 +1,9 @@
+/*
+ * $Id: err.h,v 1.3 2006-06-06 01:39:03 ezdy Exp $
+ *
+ * error reporting
+ */
+
 #ifndef __ERR_H
 #define __ERR_H
 

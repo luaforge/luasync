@@ -1,3 +1,9 @@
+/*
+ * $Id: net.c,v 1.7 2006-06-06 01:39:03 ezdy Exp $
+ *
+ * Network sockets cruft
+ */
+
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>

@@ -1,3 +1,9 @@
+/*
+ * $Id: err.c,v 1.3 2006-06-06 01:39:03 ezdy Exp $
+ *
+ * error reporting
+ */
+
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
