@@ -1,3 +1,14 @@
+2006-06-06 03:39  ezdy
+
+	* Makefile, buf.h, err.c, err.h, io.c, io.h, luasync.c, net.c,
+	  net.h: introduced python-like pack/unpack. added comments to all
+	  the files.
+
+2006-06-06 00:45  ezdy
+
+	* Makefile, buf.c, buf.h, io.c, luasync.c, net.c: various buffer
+	  fixups
+
 2006-06-05 03:35  ezdy
 
 	* net.c: added explicit close(), to avoid fd leakage (gc is not a
