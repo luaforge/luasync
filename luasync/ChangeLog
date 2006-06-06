@@ -1,3 +1,7 @@
+2006-06-06 03:40  ezdy
+
+	* misc.c, misc.h: alright, now added pack/unpack ;)
+
 2006-06-06 03:39  ezdy
 
 	* Makefile, buf.h, err.c, err.h, io.c, io.h, luasync.c, net.c,
