@@ -1,5 +1,5 @@
 /*
- * $Id: buf.h,v 1.8 2006-06-06 01:39:03 ezdy Exp $
+ * $Id: buf.h,v 1.9 2006-06-07 01:08:23 ezdy Exp $
  * buf.h - buffer VM implementation.
  * provides primitives for operating large blobs of data,
  * appending, prepending, inserting, cutting etc.
@@ -25,7 +25,7 @@
 #include "ll.h"
 #include "buf.h"
 
-#if 1
+#if 0
 #define DEBUG(fmt...) { fprintf(stderr, fmt); fprintf(stderr, "\n"); fflush(stderr); }
 #else
 #define DEBUG(...)

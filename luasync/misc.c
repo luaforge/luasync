@@ -1,5 +1,5 @@
 /*
- * $Id: misc.c,v 1.1 2006-06-06 01:40:27 ezdy Exp $
+ * $Id: misc.c,v 1.2 2006-06-07 01:08:23 ezdy Exp $
  *
  * various utilities for dealing with the outside world
  */
@@ -18,13 +18,13 @@
 
 #undef DEBUG
 
-#if 1
+#if 0
 #define DEBUG(fmt...) { fprintf(stderr, fmt); fprintf(stderr, "\n"); fflush(stderr); }
 #else
 #define DEBUG(...)
 #endif
 
-#define APPEND(ptr,ln) \
+#define _APPEND(ptr,ln) { \
 	DEBUG("appending %d bytes", ln); \
 	n = buf_tryfitbytes(buf, ptr, ln); \
 	if (n < ln) { \
@@ -36,7 +36,25 @@
 		buf->len += nb->len; nb->len = 0; \
 		lua_pop(L, 1); \
 	} \
-	done += ln;
+	done += ln; \
+}
+#define APPEND(ptr,ln) \
+	if (bytepos) { \
+		_APPEND(&byte, 1); \
+		byte = bytepos = 0; \
+	} \
+	_APPEND(ptr, ln)
+
+#define APPENDBIT(bit) { \
+		DEBUG("appending bit %d", (bit)&1); \
+		byte <<= 1; \
+		byte |= (bit) & 1; \
+		bytepos++; \
+		if (bytepos == 8) { \
+			_APPEND(&byte, 1); \
+			byte = bytepos = 0; \
+		} \
+	}
 
 #define DO_ARG(chr,typ,len) \
 	case chr: { \
@@ -55,6 +73,15 @@
 		break; \
 	}
 
+/*
+little:
+|0...7|8...15|16..23|24..31|
+big:
+|32..24|23..16|15..8|7..0|
+
+ */
+
+
 int	misc_pack(lua_State *L)
 {
 	struct	luabuf *buf = lua_tobuf(L, 1, BUF_CONV|BUF_HARD);
@@ -64,12 +91,13 @@ int	misc_pack(lua_State *L)
 	int	repeat = 0;
 	int	endian = 1;
 	int	done = 0;
+	int n, i;
+	unsigned char	byte, bytepos = 0;
 
 	while ((c = *fmt++)) {
 		uint64_t b;
 		const char *str;
 		char *tmp;
-		int n, i;
 
 		if (c >= '0' && c <= '9') {
 			repeat = repeat * 10 + (c-'0');
@@ -91,6 +119,37 @@ int	misc_pack(lua_State *L)
 		if (!repeat)
 			repeat++;
 
+		/* arbitrary-bitwide numbers are tricky ... */
+		if (c == 'n') {
+			uint64_t v = luaL_checknumber(L, pos);
+			unsigned char *pt = (void *) &v;
+			int bc = (repeat+7)/8;
+			pos++;
+			v &= (1<<(repeat))-1;
+			/* little endian is trivial */
+			if (!endian) {
+				int	i;
+				repeat--;
+				do {
+					APPENDBIT((uint32_t)(v >> repeat));
+				} while (repeat--);
+			} else {
+				int max, j, i;
+				/* where the big endian isnt.. */
+				pt += sizeof(v) - bc;
+				max = 8 - (bc*8-repeat);
+				for (i = 0; i < bc; i++) {
+					DEBUG("i=%d,max=%d",i,max);
+					for (j=max-1;j>=0;j--) {
+						APPENDBIT(pt[i] >> j)
+					}
+					max = 8;
+				}
+			}
+			repeat = 0;
+			continue;
+		}
+
 		while (repeat--) switch (c) {
 			case '<':
 				endian = 0;
@@ -111,7 +170,7 @@ int	misc_pack(lua_State *L)
 				size_t sl;
 				str = luaL_checklstring(L, pos, &sl);
 				pos++;
-				APPEND(((char*)str), (sl+1));
+				APPEND(((char*)str), (sl));
 				break;
 			}
 			DO_ARG('b', signed char, 1);
@@ -124,13 +183,18 @@ int	misc_pack(lua_State *L)
 			DO_ARG('L', uint64_t, 8);
 		}
 		repeat = 0;
+		DEBUG("done %d bytes, bytepos=%d", done, bytepos);
 	}
+	if (bytepos)
+		_APPEND(&byte, 1);
+	DEBUG("OUT: done %d bytes, bytepos=%d", done, bytepos);
 	lua_pushinteger(L, done);
 	return 1;
 }
 
 #undef DO_ARG
 #undef APPEND
+#undef _APPEND
 
 #define MIN(x,y) ((x)<(y)?(x):(y))
 

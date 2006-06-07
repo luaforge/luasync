@@ -1,5 +1,5 @@
 /*
- * $Id: event.c,v 1.8 2006-05-29 07:19:30 ezdy Exp $
+ * $Id: event.c,v 1.9 2006-06-07 01:08:23 ezdy Exp $
  *
  * this used to be libevent. which was quite overkill and
  * overbloat, so we're stuck with our own event notification
@@ -201,6 +201,7 @@ static	luaL_reg ev_meth[] = {
 
 int event_init(lua_State *L)
 {
+	updatenow();
 	ev_init();
 	LL_CLEAR(timers);
 

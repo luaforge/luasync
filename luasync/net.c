@@ -1,5 +1,5 @@
 /*
- * $Id: net.c,v 1.7 2006-06-06 01:39:03 ezdy Exp $
+ * $Id: net.c,v 1.8 2006-06-07 01:08:23 ezdy Exp $
  *
  * Network sockets cruft
  */
@@ -45,8 +45,8 @@ static	int	str2sin(lua_State *L, int pos, struct sockaddr_in *sin)
 
 	host = lua_tostring(L, pos);
 
-	port = luaL_optint(L, pos+1, 0);
-	if (!host && !port)
+	port = luaL_optint(L, pos+1, -1);
+	if (!host && port == -1)
 		return 0;
 
 	ip = INADDR_ANY;
@@ -55,11 +55,11 @@ static	int	str2sin(lua_State *L, int pos, struct sockaddr_in *sin)
 		if (ip == INADDR_NONE)
 			return -1;
 	}
-	if (port < 0 || port > 65535)
+	if ((port < 0 || port > 65535) && port != -1)
 		return -1;
 	sin->sin_addr.s_addr = ip;
 	sin->sin_port = htons(port);
-	return (host != NULL) + (port != 0);
+	return (host != NULL) + (port != -1);
 }
 
 /* create our socket udata and assign metatables to it */
@@ -115,7 +115,7 @@ static	int	net_ip(lua_State *L, int type, int proto)
 
 	sock = mksock(L);
 	sock->fd = fd;
-	sock->flags = type=SOCK_STREAM?SOCK_TCP:SOCK_UDP;
+	sock->flags = type==SOCK_STREAM?SOCK_TCP:SOCK_UDP;
 	err_no = 0;
 	return 1;
 }
@@ -140,7 +140,7 @@ static	int	net_bind(lua_State *L)
 
 	err_no = EINVAL;
 
-	if (str2sin(L, 2, &sin) <= 0)
+	if (str2sin(L, 2, &sin) < 0)
 		return 0;
 	if (bind(s->fd, (struct sockaddr *) &sin, sizeof(sin)) < 0)
 		ERRNIL();
@@ -390,12 +390,12 @@ static	int	net_connect(struct lua_State *L)
 	struct	sock *s = tosock(L, 1);
 	struct	sockaddr_in remote;
 
+	memset(&remote, 0, sizeof(remote));
 	err_no = EINVAL;
 	if (str2sin(L, 2, &remote) != 2)
 		ERRNIL();
 	err_no = 0;
 
-	memset(&remote, 0, sizeof(remote));
 	remote.sin_family = AF_INET;
 	if (connect(s->fd, (struct sockaddr *) &remote, sizeof(remote)))
 		ERRNIL();
@@ -420,7 +420,7 @@ static	int	net_recv_dgram(struct lua_State *L, struct sock *s, struct luabuf *bu
 	}
 	buf_commit(buf, got);
 	lua_pushinteger(L, got);
-	return 0;
+	return 1;
 }
 
 /* receive from tcp/udp socket */
