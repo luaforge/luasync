@@ -1,3 +1,7 @@
+2006-06-08 04:57  ezdy
+
+	* doc/misc.txt: added pack/unpack documentation
+
 2006-06-08 04:51  ezdy
 
 	* buf.c, buf.h, misc.c: fixed tryfitbytes so it wont mess raw
