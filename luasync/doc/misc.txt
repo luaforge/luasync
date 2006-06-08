@@ -1,0 +1,28 @@
+$Id: misc.txt,v 1.1 2006-06-08 02:57:23 ezdy Exp $
+
+-- python-like binary data packing
+misc.pack(buf, format, values...)
+misc.unpack(buf, format)
+
+	chr	meaning		lua	size [b]
+-------------------------------------------------
+	x	pad byte	-	1
+	c	char		str	1
+	b	signed char	num	1
+	B	unsigned char	num	1
+	h	short		num	2
+	H	unsigned short	num	2
+	i	int		num	4
+	I	unsigned int	num	4
+	l	long		num	8
+	L	unsigned long	num	8
+	s	asciiz		str	variable
+	S	fixed-len str	str	variable
+	n	bits		num	variable
+
+special modifiers:
+	n	capture/write given number of bits.
+		using other types will pad to nearest
+		byte boundary automagically
+	<	packed/unpack data little endian
+	>	pack/unpack data big endian
