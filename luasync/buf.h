@@ -1,5 +1,5 @@
 /*
- * $Id: buf.h,v 1.9 2006-06-07 01:08:23 ezdy Exp $
+ * $Id: buf.h,v 1.10 2006-06-08 02:51:49 ezdy Exp $
  * buf.h - buffer VM implementation.
  * provides primitives for operating large blobs of data,
  * appending, prepending, inserting, cutting etc.
@@ -209,7 +209,7 @@ static inline int	buf_tryfitbytes(struct luabuf *in, char *bytes, int len)
 	assert(in->chain.prev != &in->chain);
 
 	bc = ll_get(in->chain.prev, struct bufchain, list);
-	if (bc->raw->free) {
+	if ((bc->raw->free) && (bc->raw->len == bc->start + bc->len)) {
 		if (bc->raw->free < len)
 			len = bc->raw->free;
 		/* the chunk must NOT overlap the free space */

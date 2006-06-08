@@ -1,5 +1,5 @@
 /*
- * $Id: misc.c,v 1.2 2006-06-07 01:08:23 ezdy Exp $
+ * $Id: misc.c,v 1.3 2006-06-08 02:51:49 ezdy Exp $
  *
  * various utilities for dealing with the outside world
  */
@@ -47,8 +47,7 @@
 
 #define APPENDBIT(bit) { \
 		DEBUG("appending bit %d", (bit)&1); \
-		byte <<= 1; \
-		byte |= (bit) & 1; \
+		byte |= ((bit) & 1)<<bytepos; \
 		bytepos++; \
 		if (bytepos == 8) { \
 			_APPEND(&byte, 1); \
@@ -123,24 +122,23 @@ int	misc_pack(lua_State *L)
 		if (c == 'n') {
 			uint64_t v = luaL_checknumber(L, pos);
 			unsigned char *pt = (void *) &v;
-			int bc = (repeat+7)/8;
+			int bcount = (repeat+7)/8;
 			pos++;
 			v &= (1<<(repeat))-1;
 			/* little endian is trivial */
 			if (!endian) {
 				int	i;
-				repeat--;
-				do {
-					APPENDBIT((uint32_t)(v >> repeat));
-				} while (repeat--);
+				for (i = 0; i < repeat; i++) {
+					APPENDBIT((uint32_t)(v >> i))
+				}
 			} else {
 				int max, j, i;
 				/* where the big endian isnt.. */
-				pt += sizeof(v) - bc;
-				max = 8 - (bc*8-repeat);
-				for (i = 0; i < bc; i++) {
+				pt += sizeof(v) - bcount;
+				max = 8 - (bcount*8-repeat);
+				for (i = 0; i < bcount; i++) {
 					DEBUG("i=%d,max=%d",i,max);
-					for (j=max-1;j>=0;j--) {
+					for (j=0;j<max;j++) {
 						APPENDBIT(pt[i] >> j)
 					}
 					max = 8;
@@ -198,7 +196,8 @@ int	misc_pack(lua_State *L)
 
 #define MIN(x,y) ((x)<(y)?(x):(y))
 
-#define GRAB(amount) \
+#define GRAB(amount) { \
+	bytepos = 8; \
 	DEBUG("grabbing %d", amount); \
 	if (pos+amount > bc->len) { \
 		char *tmp = alloca(amount); \
@@ -231,20 +230,33 @@ int	misc_pack(lua_State *L)
 			else \
 				quit = 1; \
 		} \
-	}
-#define DO_ARG(chr,typ,len) \
+	} \
+}
+
+#define GRABIT(to) \
+	DEBUG("grabbing one bit, bytepos=%d", bytepos); \
+	if (bytepos == 8) { \
+		GRAB(1); \
+		byte = *p; \
+		bytepos = 0; \
+	} \
+	to = (byte >> bytepos) & 1; \
+	bytepos++;
+
+
+#define DO_ARG(chr,typ,ln) \
 	case chr: { \
 		typ *val; \
-		char out[len]; \
-		GRAB(len); \
+		char out[ln]; \
+		GRAB(ln); \
 		val = (void*)p; \
 		if (!(endian)) { \
 			int i; \
-			for (i = 0; i < len; i++) \
+			for (i = 0; i < ln; i++) \
 				out[i] = *val>>(i*8); \
 		} else { \
-			for (i = 0; i < len; i++) \
-				out[i] = *val>>(((len-1)*8)-i*8); \
+			for (i = 0; i < ln; i++) \
+				out[i] = *val>>(((ln-1)*8)-i*8); \
 		} \
 		lua_pushnumber(L, *((typ *) (out))); \
 		break; \
@@ -254,6 +266,7 @@ int	misc_unpack(lua_State *L)
 {
 	struct	luabuf *buf = lua_tobuf(L, 1, BUF_CONV|BUF_HARD);
 	const char	*fmt = luaL_checkstring(L, 2);
+	int	start = lua_tointeger(L, 3);
 	char	c, *p;
 	int	quit = 0;
 	struct	bufchain *bc;
@@ -261,6 +274,7 @@ int	misc_unpack(lua_State *L)
 	int	repeat = 0;
 	int	endian = 1;
 	int	i;
+	unsigned char byte, bytepos = 8;
 
 	lua_settop(L, 2);
 
@@ -269,13 +283,17 @@ int	misc_unpack(lua_State *L)
 		return 0;
 	}
 
-	bc = ll_get(buf->chain.next, struct bufchain, list);
-	while ((!quit) && (c = *fmt++)) {
+	bc = buf_findpos(buf, start, &pos);
+	DEBUG("complete fmt: %s", fmt);
+	while ((c = *fmt++)) {
+		DEBUG("fmt chr=%c", c);
 		if (c >= '0' && c <= '9') {
 			repeat = repeat * 10 + (c-'0');
 			continue;
 		}
 
+		if (quit && c != 'n')
+			break;
 		if (c == 'S') {
 			if (!repeat)
 				luaL_argerror(L, 2, "'S' must be prefixed by char count");
@@ -286,6 +304,43 @@ int	misc_unpack(lua_State *L)
 		}
 		if (!repeat)
 			repeat++;
+		if (c == 'n') {
+			uint64_t v = 0;
+			unsigned char *pt = (void *) &v;
+			int bcount = (repeat+7)/8;
+
+			if ((quit) && (bytepos + repeat > 8))
+				break;
+
+			DEBUG("UNPACKing %d bits", repeat);
+			/* little endian is trivial */
+			if (!endian) {
+				int	i;
+				for (i = 0; i < repeat; i++) {
+					int to;
+					GRABIT(to);
+					v |= to << i;
+				}
+			} else {
+				int max, j, i;
+				/* where the big endian isnt.. */
+				pt += sizeof(v) - bcount;
+				max = 8 - (bcount*8-repeat);
+				for (i = 0; i < bcount; i++) {
+					DEBUG("i=%d,max=%d",i,max);
+					for (j=0;j<max;j++) {
+						int to;
+						GRABIT(to)
+						pt[i] |= to << j;
+					}
+					max = 8;
+				}
+			}
+			lua_pushnumber(L, v);
+			DEBUG("converted number to %lld, quit=%d", v, quit);
+			repeat = 0;
+			continue;
+		}
 
 		while ((!quit) && (repeat--)) switch (c) {
 			case '<':

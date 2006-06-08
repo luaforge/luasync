@@ -1,5 +1,5 @@
 /*
- * $Id: buf.c,v 1.8 2006-06-05 22:45:17 ezdy Exp $
+ * $Id: buf.c,v 1.9 2006-06-08 02:51:49 ezdy Exp $
  * buffer VM implementation.
  * provides primitives for operating large blobs of data,
  * appending, prepending, inserting, cutting etc.
@@ -337,7 +337,7 @@ static	int	bufL_insert(lua_State *L)
 		return 1;
 	if (!what) {
 		DEBUG("doing buf-from-string for '%s'/%d", whats, whatslen);
-		what = buf_fromstring(L, whats, whatslen, pos == in->len);
+		what = buf_fromstring(L, whats, whatslen, (pos == in->len) && (whatslen > 16));
 	} else {
 		/* create our private copy of the chain being appended */
 		what = buf_dup(L, what);
