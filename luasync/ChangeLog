@@ -1,3 +1,17 @@
+2006-06-08 04:51  ezdy
+
+	* buf.c, buf.h, misc.c: fixed tryfitbytes so it wont mess raw
+	  buffer when there is no real tail.  prealloc only if more than 16
+	  bytes are converted from string (should make this
+	  script-configurable option someday), full variable-bitwide
+	  integers support for pack/unpack, up to 64 bit, both little and
+	  big endian.
+
+2006-06-07 03:08  ezdy
+
+	* buf.h, event.c, misc.c, net.c: fixed binding ports and udp stuff.
+	  pack/unpack now support variable-bitlen integers
+
 2006-06-06 03:40  ezdy
 
 	* misc.c, misc.h: alright, now added pack/unpack ;)
