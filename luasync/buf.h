@@ -1,5 +1,5 @@
 /*
- * $Id: buf.h,v 1.10 2006-06-08 02:51:49 ezdy Exp $
+ * $Id: buf.h,v 1.11 2006-06-22 21:24:43 ezdy Exp $
  * buf.h - buffer VM implementation.
  * provides primitives for operating large blobs of data,
  * appending, prepending, inserting, cutting etc.
@@ -55,6 +55,7 @@ struct	bufchain {
 
 /* this is the userdata lua structure */
 struct	luabuf {
+	int	prealloc;
 	int	len;
 	llist	chain;
 };
@@ -243,7 +244,7 @@ static inline struct luabuf *buf_fromstring(struct lua_State *L, char *bytes, in
 {
 	struct	luabuf *lb = buf_new(L);
 	struct	bufchain *bc = malloc(sizeof(*bc));
-	int pre = prealloc?BUF_PREALLOC:0;
+	int pre = prealloc;
 
 	bc->len = len;
 	bc->start = 0;

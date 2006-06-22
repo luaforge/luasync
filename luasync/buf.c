@@ -1,5 +1,5 @@
 /*
- * $Id: buf.c,v 1.9 2006-06-08 02:51:49 ezdy Exp $
+ * $Id: buf.c,v 1.10 2006-06-22 21:24:43 ezdy Exp $
  * buffer VM implementation.
  * provides primitives for operating large blobs of data,
  * appending, prepending, inserting, cutting etc.
@@ -29,7 +29,7 @@ int	vused = 0;	/* virtual memory used */
 /* allocate new buffer */
 static	int	bufL_new(struct lua_State *L)
 {
-	buf_new(L);
+	buf_new(L)->prealloc = lua_tointeger(L, 1);
 	return 1;
 }
 
@@ -337,7 +337,7 @@ static	int	bufL_insert(lua_State *L)
 		return 1;
 	if (!what) {
 		DEBUG("doing buf-from-string for '%s'/%d", whats, whatslen);
-		what = buf_fromstring(L, whats, whatslen, (pos == in->len) && (whatslen > 16));
+		what = buf_fromstring(L, whats, whatslen, in->prealloc);
 	} else {
 		/* create our private copy of the chain being appended */
 		what = buf_dup(L, what);
@@ -430,13 +430,19 @@ static	int	bufL_append(lua_State *L)
 	for (i = 2; i <= narg; i++) {
 		struct luabuf *lb;
 		struct luabuf *dup;
-		if ((i == narg) && lua_isstring(L, i)) {
+		if (lua_isstring(L, i)) {
 			int l;
 			char *s = (char *) luaL_checklstring(L, i, (size_t *) &l);
-			lb = buf_fromstring(L, s, l, 1);
-		} else
+			/* try to fit something .. */
+			int fit = buf_tryfitbytes(to, s, l);
+			if (fit == l) /* full fit */
+				continue;
+			/* partial or no fit */
+			dup = buf_fromstring(L, s + fit, l - fit, to->prealloc);
+		} else {
 			lb = lua_tobuf(L, i, BUF_CONV|BUF_HARD);
-		dup = buf_dup(L, lb);
+			dup = buf_dup(L, lb);
+		}
 		DEBUG("appending %d", lb->len);
 		/* and append the duplicate to the tail */
 		ll_addlist(to->chain.prev, &dup->chain);
