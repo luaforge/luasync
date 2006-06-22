@@ -1,5 +1,5 @@
 /*
- * $Id: err.c,v 1.3 2006-06-06 01:39:03 ezdy Exp $
+ * $Id: err.c,v 1.4 2006-06-22 21:01:28 ezdy Exp $
  *
  * error reporting
  */
@@ -61,6 +61,8 @@ static	int	err_get(lua_State *L)
 	lua_pushstring(L, err_matrix_long[err_no]);
 	return 1;
 }
+
+
 
 luaL_Reg err_meth[] = {
 	{ "clear", err_clear },

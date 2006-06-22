@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.9 2006-06-06 01:39:03 ezdy Exp $
+# $Id: Makefile,v 1.10 2006-06-22 21:01:28 ezdy Exp $
 # only for macosx now ;)
 
 
@@ -6,7 +6,7 @@ CFLAGS=-I/usr/local/include -O0 -ggdb -Winline -Wall
 #CFLAGS=-I/usr/local/include -O3 -Winline -Wall
 
 
-LDFLAGS=-bundle -undefined dynamic_lookup
+LDFLAGS=-bundle -undefined dynamic_lookup -L/usr/local/lib -lsqlite3
 LD=export MACOSX_DEPLOYMENT_TARGET="10.3"; gcc
 
 all: luasync.so
@@ -21,9 +21,13 @@ event.o: event.c event.h buf.h
 buf.o: buf.c buf.h
 err.o: err.c err.h buf.h
 net.o: net.c net.h event.h buf.h
+sql.o: buf.h sql.c
 
 luasync.o: luasync.c
 
-luasync.so: buf.o err.o net.o luasync.o event.o io.o misc.o
-	$(LD) $(LDFLAGS) buf.o err.o net.o event.o luasync.o io.o misc.o -o luasync.so
+luasync.so: buf.o err.o net.o luasync.o event.o io.o misc.o sql.o
+	$(LD) $(LDFLAGS) buf.o err.o net.o event.o luasync.o io.o misc.o sql.o -o luasync.so
+metatest.so: metatest.c
+	$(CC) $(CFLAGS) metatest.c -c -o metatest.o
+	$(LD) $(LDFLAGS) metatest.o -o metatest.so
 

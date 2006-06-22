@@ -1,5 +1,5 @@
 /*
- * $Id: luasync.c,v 1.6 2006-06-06 01:39:03 ezdy Exp $
+ * $Id: luasync.c,v 1.7 2006-06-22 21:01:28 ezdy Exp $
  *
  * glueing it all together
  */
@@ -14,6 +14,7 @@
 #include "event.h"
 #include "io.h"
 #include "misc.h"
+#include "sql.h"
 
 LUALIB_API int luaopen_luasync(lua_State *L)
 {
@@ -24,6 +25,7 @@ LUALIB_API int luaopen_luasync(lua_State *L)
 	event_init(L);
 	io_init(L);
 	misc_init(L);
+	sql_init(L);
 	return 0;
 }
 
