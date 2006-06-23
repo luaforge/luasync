@@ -1,5 +1,5 @@
 /*
- * $Id: sql.c,v 1.1 2006-06-22 21:01:28 ezdy Exp $
+ * $Id: sql.c,v 1.2 2006-06-23 01:38:59 ezdy Exp $
  *
  * Some basic sqlite binding
  */
@@ -207,7 +207,7 @@ static	int	db_prepare(lua_State *L)
 	const	char *qs = luaL_checklstring(L, 2, &qsl);
 	const	char *qse = qs + qsl;
 
-	sqlite3_stmt *sts[MAXSTS];
+	static	sqlite3_stmt *sts[MAXSTS];
 	int	parcount = 0, i;
 	struct	stmt *stmt;
 

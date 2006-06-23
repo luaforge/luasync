@@ -1,5 +1,5 @@
 /*
- * $Id: misc.c,v 1.3 2006-06-08 02:51:49 ezdy Exp $
+ * $Id: misc.c,v 1.4 2006-06-23 01:38:59 ezdy Exp $
  *
  * various utilities for dealing with the outside world
  */
@@ -91,7 +91,9 @@ int	misc_pack(lua_State *L)
 	int	endian = 1;
 	int	done = 0;
 	int n, i;
-	unsigned char	byte, bytepos = 0;
+	unsigned char	byte, bytepos;
+
+	byte = bytepos = 0;
 
 	while ((c = *fmt++)) {
 		uint64_t b;
@@ -275,6 +277,8 @@ int	misc_unpack(lua_State *L)
 	int	endian = 1;
 	int	i;
 	unsigned char byte, bytepos = 8;
+
+	byte = 0;
 
 	lua_settop(L, 2);
 

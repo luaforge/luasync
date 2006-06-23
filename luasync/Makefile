@@ -1,9 +1,9 @@
-# $Id: Makefile,v 1.10 2006-06-22 21:01:28 ezdy Exp $
+# $Id: Makefile,v 1.11 2006-06-23 01:38:59 ezdy Exp $
 # only for macosx now ;)
 
 
-CFLAGS=-I/usr/local/include -O0 -ggdb -Winline -Wall
-#CFLAGS=-I/usr/local/include -O3 -Winline -Wall
+#CFLAGS=-I/usr/local/include -O0 -ggdb -Winline -Wall
+CFLAGS=-I/usr/local/include -DNDEBUG -O3 -Winline -Wall
 
 
 LDFLAGS=-bundle -undefined dynamic_lookup -L/usr/local/lib -lsqlite3
