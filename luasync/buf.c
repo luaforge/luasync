@@ -1,5 +1,5 @@
 /*
- * $Id: buf.c,v 1.10 2006-06-22 21:24:43 ezdy Exp $
+ * $Id: buf.c,v 1.11 2006-06-24 02:24:51 ezdy Exp $
  * buffer VM implementation.
  * provides primitives for operating large blobs of data,
  * appending, prepending, inserting, cutting etc.
@@ -430,6 +430,8 @@ static	int	bufL_append(lua_State *L)
 	for (i = 2; i <= narg; i++) {
 		struct luabuf *lb;
 		struct luabuf *dup;
+		if (lua_isnil(L, i))
+			continue;
 		if (lua_isstring(L, i)) {
 			int l;
 			char *s = (char *) luaL_checklstring(L, i, (size_t *) &l);
@@ -443,7 +445,7 @@ static	int	bufL_append(lua_State *L)
 			lb = lua_tobuf(L, i, BUF_CONV|BUF_HARD);
 			dup = buf_dup(L, lb);
 		}
-		DEBUG("appending %d", lb->len);
+		DEBUG("appending %d", dup->len);
 		/* and append the duplicate to the tail */
 		ll_addlist(to->chain.prev, &dup->chain);
 		LL_CLEAR(dup->chain);
