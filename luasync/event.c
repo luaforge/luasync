@@ -1,5 +1,5 @@
 /*
- * $Id: event.c,v 1.9 2006-06-07 01:08:23 ezdy Exp $
+ * $Id: event.c,v 1.10 2006-07-10 00:58:39 ezdy Exp $
  *
  * this used to be libevent. which was quite overkill and
  * overbloat, so we're stuck with our own event notification
@@ -192,10 +192,18 @@ retry:
 	return 3;
 }
 
+int	event_now(lua_State *L)
+{
+	updatenow();
+	lua_pushnumber(L, now);
+	return 1;
+}
+
 static	luaL_reg ev_meth[] = {
 	{ "set",	event_set },
 	{ "timer",	event_timer },
 	{ "poll",	event_poll },
+	{ "now",	event_now },
 	{ NULL, NULL }
 };
 
