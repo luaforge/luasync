@@ -1,36 +1,13 @@
-$Id: event.txt,v 1.4 2006-05-27 03:20:37 ezdy Exp $
+$Id: event.txt,v 1.5 2006-08-31 21:30:04 ezdy Exp $
 ---------------
 Event interface
 ---------------
-event.set(fd, read, write);
-	modify mask for fd. read & write are boolean values. true if youre
-	interested in the event, false if you're not, nil if you want to preserve
-	original value.
-event.timer(arg, timeout)
 
-fd/arg, read, write = event.poll()
-	return one event or sleep until there are some. returns imediately with nil if there
-	are no events to be slept on/to be returned.
-	fd/arg - the fd where event happened or timer arg
-	read - a read event happened
-	write - write event happened
-	read&write are both nil in case of timer.
+now = event.wait(timeout, catch)
 
-event is created by initial event.set(). it will be in stopped state. once you'll call event.start()
-the timer will start counting and event is reported either after timeout or if something happens.
-you've to restart the event using event.start() after timeout/event received.
+this call will wait for all events for specified timeout. 'catch' points to a function
+which is called when there is error raised, its arguments are:
+catch(obj, ...)
+if it returns true, the event.wait() loop is prematurely interrupted.
 
-note that there are no methods to delete events. an event is destroyed once the arg/fd is not referenced
-by anyone else (weak keys).
-
-this means doing event.set("mytimer", nil, 1000) is pretty stupid.
-correct is:
-
-timerid = {}
-event.set(timerid, nil, 1000)
-....
-timerid = nil <- now the timer will get cancelled
-
-because we're using weak tables for everything, you must use referenced types, such as tables,
-threads or userdata. other will just produce incorrect results and the timer will simply disappear
-after first gc cycle.
+return value is number of events processed.

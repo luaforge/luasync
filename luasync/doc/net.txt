@@ -1,6 +1,14 @@
-$Id: net.txt,v 1.3 2006-05-15 07:36:51 ezdy Exp $
+$Id: net.txt,v 1.4 2006-08-31 21:30:04 ezdy Exp $
 Net interface
 -------------
+
+network socket constructors are net.tcp and net.udp, they return a table with the following structure:
+s.fd = real file descriptor number
+s.error = error on the socket
+s.read, s.write = set to true if youre interested in read/write events on this socket
+s.cb = callback to be called/resumed (either function or a thread) when there is an event on the socket
+cb is called like:
+cb(s, read, write) where read and write are booleans if the event happened
 
 s = net.tcp([bindaddr,port])
 	create a tcp socket

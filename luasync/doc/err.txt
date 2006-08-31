@@ -1,6 +1,11 @@
-$Id: err.txt,v 1.3 2006-05-14 01:43:14 ezdy Exp $
+$Id: err.txt,v 1.4 2006-08-31 21:30:04 ezdy Exp $
 Error reporting
 ---------------
+
+err.force(true) - enforce errors, every possible error will raise an exception
+with the err.no value. in err.str, there will be still the error string for full
+evoluation.
+
 err.no = return current error value, nil on no error
 err.str = return current error's string value ("Invalid argument" and alike)
 err.clear() = clear current error
